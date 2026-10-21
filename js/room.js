@@ -1,4 +1,5 @@
 // Builds the room. Add furniture by adding lines below. on(mesh,label,fn) makes something clickable.
+import { loadModel } from './models.js';
 const T=THREE;
 export function buildRoom(S,on,A){
  const col=[]; // collision boxes [minx,maxx,minz,maxz]

@@ -17,7 +17,10 @@ const {col,motes}=buildRoom(S,on,{
 let yaw=0,pitch=0,keys={},drag=null,loaded=false;
 addEventListener('keydown',e=>keys[e.key.toLowerCase()]=1);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 const ray=new T.Raycaster(),mp=new T.Vector2(),tag=$('tag');
-const cast=e=>{mp.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(mp,cam);return ray.intersectObjects(hit)[0]};
+const cast=e=>{mp.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(mp,cam);
+  const h=ray.intersectObjects(hit,true)[0];if(!h)return;
+  let o=h.object;while(o&&!o.userData.fn)o=o.parent;
+  return o&&{object:o}};
 cv.addEventListener('pointerdown',e=>drag={x:e.clientX,y:e.clientY,m:0});
 addEventListener('pointerup',e=>{if(drag&&drag.m<6&&loaded&&!isOpen()){const h=cast(e);if(h)h.object.userData.fn()}drag=null});
 addEventListener('pointermove',e=>{if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.m+=Math.abs(dx)+Math.abs(dy);yaw-=dx*.005;pitch=Math.max(-1.2,Math.min(1.2,pitch-dy*.005));drag.x=e.clientX;drag.y=e.clientY}
