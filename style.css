@@ -1,0 +1,18 @@
+:root{--bg:#2b1a2e;--fg:#fff0dc;--accent:#ff9ec4;--card:#3a2440}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Trebuchet MS",system-ui,sans-serif;overflow:hidden}
+canvas#c{display:block;width:100%;height:100%;touch-action:none}
+#load{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle,#4a2a45,var(--bg));z-index:10;text-align:center;padding:24px;transition:opacity .8s}
+#load h1{font-size:clamp(2rem,7vw,4rem);margin:0 0 8px;color:var(--accent);opacity:0;transition:opacity 1s}
+#intro{min-height:1.6em;font-size:1.2rem;margin-bottom:24px}
+#bar{width:min(320px,80vw);height:12px;border:2px solid var(--accent);border-radius:12px;overflow:hidden}
+#fill{height:100%;width:0;background:var(--accent);border-radius:12px}
+#enter{margin-top:24px;padding:12px 28px;font-size:1.1rem;border:0;border-radius:20px;background:var(--accent);color:#3a1a30;cursor:pointer;display:none;font-weight:bold}
+#hud{position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));text-align:center;font-size:.85rem;pointer-events:none;text-shadow:0 1px 3px #000}
+#tag{position:fixed;left:50%;top:14%;transform:translateX(-50%);background:#000a;padding:6px 14px;border-radius:20px;display:none;pointer-events:none}
+#modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:5;padding:16px}
+#box{background:var(--card);border:3px solid var(--accent);border-radius:20px;max-width:560px;width:100%;max-height:90%;overflow:auto;padding:20px;position:relative}
+#box h2{margin-top:0;color:var(--accent)} #box a{color:var(--accent)}
+#box canvas{display:block;margin:auto;border-radius:12px;max-width:100%}
+#x{position:absolute;right:12px;top:8px;background:none;border:0;color:var(--fg);font-size:1.6rem;cursor:pointer}
+.btn{display:inline-block;margin:4px;padding:8px 14px;border-radius:14px;background:var(--accent);color:#3a1a30;font-weight:bold;text-decoration:none}
