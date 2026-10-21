@@ -26,7 +26,7 @@ export function buildRoom(S,on,A){
  B(.25,.02,.1,0xffffff,2.0,.86,-3.2);Cy(.06,.1,0xfff,3.1,.9,-3.3);
  const lamp=Cy(.02,.5,0x333,1.5,1.1,-3.7);Sp(.12,0xffd070,1.5,1.4,-3.65);
  // purple chair
- Cy(.3,.1,0x7a3b8c,2.4,.55,-2.6);B(.5,.6,.08,0x7a3b8c,2.4,.95,-2.35);Cy(.04,.45,0x222,2.4,.28,-2.6);Cy(.28,.03,0x222,2.4,.03,-2.6);
+loadModel(S, 'models/chair.glb', { x: 3.5, y: 1.3, z: 1.1, scale: 0.5 });
  // low bookcase (left) + crates + record player
  const bc=B(.7,.9,2.1,0xa8683a,-3.6,.45,-2.0);col.push([-4,-3.2,-3.1,-.9]);books(-3.55,.9,-2.7,6);
  B(.5,.1,.6,0x333,-3.6,.95,-1.6);Cy(.2,.03,0x111,-3.6,1.02,-1.6);Sp(.04,0xff6fa5,-3.6,1.05,-1.6);
