@@ -30,7 +30,7 @@ let last=0;
   if(ok(cam.position.x+dx,cam.position.z))cam.position.x+=dx;if(ok(cam.position.x,cam.position.z+dz))cam.position.z+=dz}
  motes.rotation.y+=dt*.02;cam.rotation.set(pitch,yaw,0,'YXZ');R.render(S,cam)})(0);
 // loading screen
-const msg="hi, i’m sasya — welcome to my room!";let i=0,pr=0;
+const msg="hi, i’m almira raisa izzatina, or call me sasya — welcome to my room!";let i=0,pr=0;
 const ty=setInterval(()=>{$('intro').textContent=msg.slice(0,++i);if(i>=msg.length)clearInterval(ty)},70);
 const pg=setInterval(()=>{pr=Math.min(100,pr+1.6);$('fill').style.width=pr+'%';if(pr>=100){clearInterval(pg);document.querySelector('#load h1').style.opacity=1;$('enter').style.display='inline-block'}},50);
 $('enter').onclick=()=>{$('load').style.opacity=0;setTimeout(()=>$('load').style.display='none',800);loaded=true};
