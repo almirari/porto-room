@@ -25,3 +25,13 @@ vinyls https://sketchfab.com/3d-models/scan-of-vinyl-records-in-box-crate-ffb343
 wooden table https://sketchfab.com/3d-models/wooden-table-4b93a3649d5b4ae9bbebc244a2fc3a6f
 
 bean bag chair https://sketchfab.com/3d-models/bean-bag-0cb9c0aa755940bda7a230e94c5846cf#download
+
+coffee mug https://sketchfab.com/3d-models/coffee-mug-school-project-5f5ccee1514c440887c072fae8e0d699
+
+cactus https://sketchfab.com/3d-models/cactus-f951db3894cf49448fd6359470a53580
+
+shark https://sketchfab.com/3d-models/3d-scaned-shark-plush-toy-867bb6cc590441a0a0bf0341da9b2c93
+
+monkey https://sketchfab.com/3d-models/viral-monkey-plush-toy-7c3ff836622b4fae91fdf1f8f7f13fed
+
+pc https://sketchfab.com/3d-models/stylized-hacked-pc-sketchfabweeklychallenge-192ab9d4706f4ffaaf22f9a299289d75

@@ -10,25 +10,8 @@ const canvas = $('c');
 const tag = $('tag');
 
 // ───────────── loading screen ─────────────
-// This runs FIRST, so it still works even if the 3D scene below crashes.
-
 let modelsReady = false;
 let loaded = false;
-
-// const LINE1 = 'hi, i’m almira raisa izzatina, or call me sasya —';
-// const LINE2 = 'welcome to my room!';
-// const FULL_LEN = LINE1.length + 1 + LINE2.length;
-let charCount = 0;
-const typer = setInterval(() => {
-  charCount++;
-  const t1 = LINE1.slice(0, charCount);
-  const t2 = charCount > LINE1.length ? LINE2.slice(0, charCount - LINE1.length - 1) : '';
-  const caret = charCount < FULL_LEN ? '<i class="caret"></i>' : '';
-  $('intro').innerHTML =
-    `<span class="l1">${t1.replace('sasya', '<b>sasya</b>')}${t2 ? '' : caret}</span>` +
-    (t2 ? `<span class="l2">${t2}${caret}</span>` : '');
-  if (charCount >= FULL_LEN) clearInterval(typer);
-}, 40);
 
 // 2. progress bar (when it hits 100%, "click anywhere to resume" appears)
 let progress = 0;
@@ -90,7 +73,7 @@ const { col, motes } = buildRoom(scene, on, {
 loadModels(scene, col).catch(e => console.warn(e)).finally(() => modelsReady = true);
 
 // ───────────── collision ─────────────
-const ROOM_LIMIT = 3.6;
+const ROOM_LIMIT = 2.9;
 const BODY = 0.3; // how close you can get to furniture
 
 const canStandAt = (x, z) =>
