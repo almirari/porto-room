@@ -161,18 +161,6 @@ export function buildRoom(scene, on, actions) {
   const rug = mesh(new T.CircleGeometry(1.6, 32), 0xf4b6c8, -0.4, 0.06, 0.6, 0, false);
   rug.rotation.x = -Math.PI / 2;
 
-  // striped runner next to the bed (green + cream)
-  const runnerTex = canvasTexture((g, w, h) => {
-    g.fillStyle = '#fbf3df'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#5f8f72';
-    for (let i = 0; i < 6; i++) g.fillRect(0, i * 44 + 8, w, 20);
-  });
-  const runner = new T.Mesh(new T.PlaneGeometry(0.7, 1.9), new T.MeshLambertMaterial({ map: runnerTex }));
-  runner.rotation.x = -Math.PI / 2;
-  runner.position.set(-1.6, 0.065, 1.9);
-  runner.receiveShadow = true;
-  scene.add(runner);
-
   // ═════════ windows with plants on the sill (back wall) ═════════
   const drawSunnyGlass = (g, w, h) => {
     const sky = g.createLinearGradient(0, 0, 0, h);
@@ -232,59 +220,41 @@ export function buildRoom(scene, on, actions) {
   cylinder(0.06, 0.1, 0xffffff, 3.1, 0.9, -3.3);
   const headphones = mesh(new T.TorusGeometry(0.08, 0.016, 8, 16), 0x2a2a2a, 2.9, 0.92, -3.0);
   headphones.rotation.x = Math.PI / 2;
-  mushroomLamp(1.55, 0.84, -3.2);
+  const deskLight = new T.PointLight(0xffd9a0, 0.45, 3);
+  deskLight.position.set(1.65, 1.3, -3.3);
+  scene.add(deskLight);
 
   // ═════════ chair (3D model) ═════════
   loadModel(scene, 'models/chair.glb', { x: 2.4, y: 0.05, z: -2.7, height: 1.5, ry: Math.PI / 2 });
 
-  // ═════════ low bookcase (left) + record player + crates ═════════
-  const bookcase = box(0.7, 0.9, 2.1, 0xc08a58, -3.6, 0.45, -2.0);
-  col.push([-4, -3.2, -3.1, -0.9]);
-  books(-3.55, 0.9, -2.7, 6);
-  on(bookcase, 'The bookcase — projects', actions.projects);
+  const TABLE_TOP = 0.84;
+  const table = loadModel(scene, 'models/wooden_table.glb', { x: -3.5, y: 0.05, z: -2.1, length: 2.4, ry: Math.PI / 2, brighten: 1 });
+  col.push([-4, -2.95, -3.3, -0.9]);
+  on(table, 'The table — projects', actions.projects);
 
-  // record player
-  box(0.5, 0.1, 0.6, 0x333333, -3.6, 0.95, -1.6);
-  cylinder(0.2, 0.03, 0x111111, -3.6, 1.02, -1.6);
-  sphere(0.04, 0xff8fb5, -3.6, 1.05, -1.6);
-
-  // crates
-  box(0.5, 0.35, 0.6, 0x8fd3c8, -3.5, 1.15, -2.5);
-  box(0.5, 0.35, 0.6, 0xf4a6b8, -3.5, 1.5,  -2.5);
+  loadModel(scene, 'models/recordplayer.glb', { x: -3.5, y: TABLE_TOP, z: -1.6, length: 0.7, ry: Math.PI / 2, brighten: 0.5 });
+  loadModel(scene, 'models/vinyls.glb',       { x: -3.5, y: TABLE_TOP, z: -2.6, length: 1.3, ry: Math.PI / 2, brighten: 1 });
+  loadModel(scene, 'models/vinyls.glb', { x: -3.6, y: 0.05, z: -2.1, length: 1.3, ry: -Math.PI / 2, brighten: 0.7 });
 
   // ═════════ bed (3D model, left front) + striped duvet + nightstand + plushies ═════════
-  const bed = loadModel(scene, 'models/bed.glb', { x: -3, y: 0, z: 2.5, length: 3.1, ry: -Math.PI / -2 });
+  const bed = loadModel(scene, 'models/bed.glb', { x: -2.9, y: 0.05, z: 1.9, length: 3.1, ry: Math.PI / 2 });
   on(bed, 'The bed — about me', actions.about);
   col.push([-3.85, -1.95, 0.35, 3.45]);
-
-  // striped duvet over the foot of the bed (butter + cream, like the inspo).
-  // If you can't see it, raise DUVET_TOP; if it floats above the mattress, lower it.
-  const DUVET_TOP = 0.78;
-  const duvetTex = canvasTexture((g, w, h) => {
-    g.fillStyle = '#fff6cf'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#f2d86a';
-    for (let i = 0; i < 8; i++) g.fillRect(0, i * 32 + 8, w, 13);
-  });
-  const duvet = new T.Mesh(new T.BoxGeometry(1.7, 0.08, 2.3), new T.MeshLambertMaterial({ map: duvetTex }));
-  duvet.position.set(-2.9, DUVET_TOP - 0.04, 1.7);
-  duvet.castShadow = true;
-  duvet.receiveShadow = true;
-  scene.add(duvet);
-  box(1.82, 0.05, 2.42, 0xa9c8ea, -2.9, DUVET_TOP - 0.075, 1.72, 0, false); // blue sheet peeking out
 
   // nightstand + mushroom lamp
   box(0.5, 0.45, 0.5, 0xe6c9a0, -3.6, 0.23, 0.05);
   mushroomLamp(-3.6, 0.46, 0.05, 0.4);
   col.push([-3.85, -3.35, -0.2, 0.3]);
 
-  // plush bear (cream-pink)
-  sphere(0.22, 0xffb3cc, -2.9,  1.0,  1.5);  // body
-  sphere(0.15, 0xffb3cc, -2.9,  1.27, 1.5);  // head
-  sphere(0.06, 0xffb3cc, -3.02, 1.4,  1.5);  // left ear
-  sphere(0.06, 0xffb3cc, -2.78, 1.4,  1.5);  // right ear
+  // we bare bears
+  loadModel(scene, 'models/we_bare_bears.glb', { x: -3.6, y: 0.05, z: -0.58, height: 1.8, ry: Math.PI / 2, brighten: 0.3 });
+  col.push([-3.9, -3.3, -0.9, -0.2]);
 
-  // smiley star plush
-  plushStar(-2.75, 0.9, 2.15, Math.PI / 2);
+  // usagi
+  const BED_TOP = 0.82;
+  const usagi = loadModel(scene, 'models/usagi.glb', { x: -2.9, y: BED_TOP, z: 2.6, height: 0.7, ry: Math.PI });
+  usagi.rotation.order = 'YXZ'; // so the tilt happens in his own frame
+  usagi.rotation.x = -0.35;     // lean back
 
   // ═════════ dresser (right) + globe + camera ═════════
   box(0.9, 1.2, 2, 0x9db89a, 3.5, 0.6, 0.8); // sage dresser
@@ -431,31 +401,8 @@ export function buildRoom(scene, on, actions) {
   box(0.45, 0.08, 0.35, 0xa8d5c2, 0.3, 0.5,  -2.4);
   box(0.45, 0.5,  0.45, 0xa9c8ea, 1.0, 0.28, -2.9);
 
-  // leather bean bag (seat + backrest) with flower blanket
-  const flowerTex = canvasTexture((g, w, h) => {
-    g.fillStyle = '#bfe0f5'; g.fillRect(0, 0, w, h);
-    [[64, 64], [192, 64], [64, 192], [192, 192]].forEach(([x, y]) => {
-      g.fillStyle = '#ff5a3c';
-      for (let k = 0; k < 8; k++) {
-        const a = k * Math.PI / 4;
-        g.beginPath(); g.arc(x + Math.cos(a) * 26, y + Math.sin(a) * 26, 16, 0, 7); g.fill();
-      }
-      g.fillStyle = '#fff6e6'; g.beginPath(); g.arc(x, y, 16, 0, 7); g.fill();
-    });
-  });
-  const beanSeat = sphere(0.55, 0x6b4a36, -1.2, 0.3, 3.1);
-  beanSeat.scale.set(1, 0.55, 1);
-  const beanBack = sphere(0.45, 0x6b4a36, -1.55, 0.55, 3.15);
-  beanBack.scale.set(0.7, 1, 1.1);
-  const blanket = new T.Mesh(new T.BoxGeometry(0.85, 0.04, 0.6), new T.MeshLambertMaterial({ map: flowerTex }));
-  blanket.position.set(-1.15, 0.6, 3.05);
-  blanket.rotation.set(0.05, 0.5, 0.12);
-  blanket.castShadow = true;
-  scene.add(blanket);
-  box(0.5, 0.06, 0.5, 0xe8c070, -1.2, 0.1, 0.2, 0.4);
-
-  // big monstera in the corner
-  monstera(3.4, 3.3);
+  // bean bag chair
+  loadModel(scene, 'models/bean_bag.glb', { x: -1.3, y: 0.05, z: 3.1, height: 0.85, ry: Math.PI / 2, brighten: 0.3 });
 
   // ═════════ fairy lights (back wall, draped in a curve, with soft glow) ═════════
   const FAIRY_COLORS = [0xffd070, 0xff8fb5, 0xfff3b0];

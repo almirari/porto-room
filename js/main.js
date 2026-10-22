@@ -2,11 +2,51 @@ import { buildRoom } from './room.js';
 import { show, isOpen } from './ui.js';
 import { flappy } from './flappy.js';
 import * as C from './content.js';
+import { loadModels } from './models.js';
 
 const T = THREE;
 const $ = id => document.getElementById(id);
 const canvas = $('c');
 const tag = $('tag');
+
+// ───────────── loading screen ─────────────
+// This runs FIRST, so it still works even if the 3D scene below crashes.
+
+let modelsReady = false;
+let loaded = false;
+
+// const LINE1 = 'hi, i’m almira raisa izzatina, or call me sasya —';
+// const LINE2 = 'welcome to my room!';
+// const FULL_LEN = LINE1.length + 1 + LINE2.length;
+let charCount = 0;
+const typer = setInterval(() => {
+  charCount++;
+  const t1 = LINE1.slice(0, charCount);
+  const t2 = charCount > LINE1.length ? LINE2.slice(0, charCount - LINE1.length - 1) : '';
+  const caret = charCount < FULL_LEN ? '<i class="caret"></i>' : '';
+  $('intro').innerHTML =
+    `<span class="l1">${t1.replace('sasya', '<b>sasya</b>')}${t2 ? '' : caret}</span>` +
+    (t2 ? `<span class="l2">${t2}${caret}</span>` : '');
+  if (charCount >= FULL_LEN) clearInterval(typer);
+}, 40);
+
+// 2. progress bar (when it hits 100%, "click anywhere to resume" appears)
+let progress = 0;
+const progressTimer = setInterval(() => {
+  progress = Math.min(modelsReady ? 100 : 92, progress + 1.6);   // wait at 92% until the models are in
+  $('fill').style.width = progress + '%';
+  if (progress >= 100) {
+    clearInterval(progressTimer);
+    $('enter').style.display = 'block';
+  }
+}, 50);
+
+// 3. click anywhere (#enter covers the whole screen) → fade out and start
+$('enter').onclick = () => {
+  $('load').style.opacity = 0;
+  setTimeout(() => $('load').style.display = 'none', 800);
+  loaded = true;
+};
 
 // ───────────── renderer, scene, camera ─────────────
 const renderer = new T.WebGLRenderer({ canvas, antialias: true });
@@ -46,6 +86,9 @@ const { col, motes } = buildRoom(scene, on, {
                         <canvas id="g" width="320" height="400"></canvas>`, flappy($('g'))),
 });
 
+// ───────────── .glb models (plant, …) ─────────────
+loadModels(scene, col).catch(e => console.warn(e)).finally(() => modelsReady = true);
+
 // ───────────── collision ─────────────
 const ROOM_LIMIT = 3.6;
 const BODY = 0.3; // how close you can get to furniture
@@ -57,7 +100,6 @@ const canStandAt = (x, z) =>
 
 // ───────────── state ─────────────
 let yaw = 0, pitch = 0;
-let loaded = false;
 let drag = null;        // set while a finger/mouse is down on the canvas
 let walkTarget = null;  // where tap-to-move is heading
 const keys = {};
@@ -189,7 +231,12 @@ function updatePlayer(dt) {
   if (move && !tryMove(move) && walkTarget) stopWalking(); // blocked → give up
 }
 
-// ───────────── main loop ─────────────
+// ───────────── touch devices ─────────────
+if (matchMedia('(pointer: coarse)').matches) {
+  $('hud').textContent = 'Tap the floor to walk · drag to look · tap things to explore';
+}
+
+// ───────────── main loop (kept last) ─────────────
 let lastTime = 0;
 function loop(t) {
   requestAnimationFrame(loop);
@@ -202,44 +249,3 @@ function loop(t) {
   renderer.render(scene, camera);
 }
 loop(0);
-
-// ───────────── loading screen ─────────────
-
-// 1. welcome text types itself out (two lines: small intro, then a bigger "welcome")
-const LINE1 = 'hi, i’m almira raisa izzatina, or call me sasya —';
-const LINE2 = 'welcome to my room!';
-const FULL_LEN = LINE1.length + 1 + LINE2.length;
-let charCount = 0;
-const typer = setInterval(() => {
-  charCount++;
-  const t1 = LINE1.slice(0, charCount);
-  const t2 = charCount > LINE1.length ? LINE2.slice(0, charCount - LINE1.length - 1) : '';
-  const caret = charCount < FULL_LEN ? '<i class="caret"></i>' : '';
-  $('intro').innerHTML =
-    `<span class="l1">${t1.replace('sasya', '<b>sasya</b>')}${t2 ? '' : caret}</span>` +
-    (t2 ? `<span class="l2">${t2}${caret}</span>` : '');
-  if (charCount >= FULL_LEN) clearInterval(typer);
-}, 40);
-
-// 2. progress bar (when it hits 100%, "click anywhere to resume" appears)
-let progress = 0;
-const progressTimer = setInterval(() => {
-  progress = Math.min(100, progress + 1.6);
-  $('fill').style.width = progress + '%';
-  if (progress >= 100) {
-    clearInterval(progressTimer);
-    $('enter').style.display = 'block';
-  }
-}, 50);
-
-// 3. click anywhere (#enter covers the whole screen) → fade out and start
-$('enter').onclick = () => {
-  $('load').style.opacity = 0;
-  setTimeout(() => $('load').style.display = 'none', 800);
-  loaded = true;
-};
-
-// ───────────── touch devices ─────────────
-if (matchMedia('(pointer: coarse)').matches) {
-  $('hud').textContent = 'Tap the floor to walk · drag to look · tap things to explore';
-}
