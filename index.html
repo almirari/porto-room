@@ -1,11 +1,167 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sasya’s Room</title><link rel="stylesheet" href="style.css"></head><body>
-<canvas id="c"></canvas><div id="tag"></div>
-<div id="hud">WASD / arrows to walk · drag to look · click things to explore</div>
-<div id="load"><h1>Sasya’s Room</h1><div id="intro"></div><div id="bar"><div id="fill"></div></div><button id="enter">Come on in →</button></div>
-<div id="modal"><div id="box"><button id="x" aria-label="Close">×</button><div id="mc"></div></div></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-<script type="module" src="js/main.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sasya’s Room</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <canvas id="c"></canvas>
+  <div id="tag"></div>
+  <div id="hud">WASD / arrows to walk · drag to look · click things to explore</div>
+
+  <!-- ═════════ loading screen: the door ═════════ -->
+  <div id="load">
+
+    <!-- shared textures (defs only, draws nothing) -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <!-- bumpy plaster wall -->
+        <filter id="stucco" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="4" seed="3" result="n"/>
+          <feDiffuseLighting in="n" lighting-color="#f3ecdc" surfaceScale="2.2" diffuseConstant="1.25">
+            <feDistantLight azimuth="225" elevation="60"/>
+          </feDiffuseLighting>
+        </filter>
+
+        <!-- painted wood grain (stretched noise) -->
+        <filter id="grain" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency=".012 .5" numOctaves="3" seed="8"/>
+          <feColorMatrix values="0 0 0 0 .5  0 0 0 0 .42  0 0 0 0 .34  .5 0 0 0 -.12"/>
+        </filter>
+
+        <!-- felt: fuzzy edge + speckled fibers -->
+        <filter id="felt" x="-5%" y="-5%" width="110%" height="110%">
+          <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" result="fuzz"/>
+          <feDisplacementMap in="SourceGraphic" in2="fuzz" scale="3" result="edge"/>
+          <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" seed="4" result="g"/>
+          <feColorMatrix in="g" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .7 -.22" result="gg"/>
+          <feComposite in="gg" in2="edge" operator="in" result="speck"/>
+          <feMerge><feMergeNode in="edge"/><feMergeNode in="speck"/></feMerge>
+        </filter>
+
+        <!-- glossy vinyl sticker shine -->
+        <filter id="vinyl" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="b"/>
+          <feSpecularLighting in="b" surfaceScale="4" specularConstant=".9" specularExponent="22" lighting-color="#fff" result="s">
+            <fePointLight x="-20" y="-30" z="120"/>
+          </feSpecularLighting>
+          <feComposite in="s" in2="SourceAlpha" operator="in" result="sp"/>
+          <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="sp"/></feMerge>
+        </filter>
+
+        <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#fff1b0"/><stop offset=".45" stop-color="#d9a838"/>
+          <stop offset=".7" stop-color="#f6d77a"/><stop offset="1" stop-color="#b8861f"/>
+        </linearGradient>
+
+        <!-- 8-point folded paper star, with a darker right half for the fold -->
+        <symbol id="foilstar" viewBox="0 0 100 100">
+          <polygon fill="url(#gold)" points="50,0 57.65,31.52 85.36,14.64 68.48,42.35 100,50 68.48,57.65 85.36,85.36 57.65,68.48 50,100 42.35,68.48 14.64,85.36 31.52,57.65 0,50 31.52,42.35 14.64,14.64 42.35,31.52"/>
+          <polygon fill="#000" opacity=".16" points="50,0 57.65,31.52 85.36,14.64 68.48,42.35 100,50 68.48,57.65 85.36,85.36 57.65,68.48 50,100 50,50"/>
+        </symbol>
+      </defs>
+    </svg>
+
+    <!-- stucco wall -->
+    <svg class="wall" aria-hidden="true"><rect width="100%" height="100%" filter="url(#stucco)"/></svg>
+
+    <div id="door">
+
+      <!-- paper-star garland over the door frame -->
+      <svg class="garland" viewBox="0 0 400 70" aria-hidden="true">
+        <path d="M0 8 Q200 48 400 8" fill="none" stroke="#bfa57a" stroke-width="1.6"/>
+        <g class="sway" style="--d:0s">  <use href="#foilstar" x="28"  y="15" width="24" height="24"/></g>
+        <g class="sway" style="--d:.4s"> <use href="#foilstar" x="88"  y="23" width="22" height="22"/></g>
+        <g class="sway" style="--d:.8s"> <use href="#foilstar" x="146" y="27" width="26" height="26"/></g>
+        <g class="sway" style="--d:.2s"> <use href="#foilstar" x="185" y="28" width="30" height="30"/></g>
+        <g class="sway" style="--d:.6s"> <use href="#foilstar" x="228" y="27" width="26" height="26"/></g>
+        <g class="sway" style="--d:1s">  <use href="#foilstar" x="288" y="23" width="22" height="22"/></g>
+        <g class="sway" style="--d:.3s"> <use href="#foilstar" x="348" y="15" width="24" height="24"/></g>
+      </svg>
+
+      <div class="leaf">
+        <svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#grain)"/></svg>
+
+        <!-- upper door panel -->
+        <div class="panel">
+          <div class="moon">
+            <i class="hook"></i><i class="jute"></i>
+            <svg viewBox="0 0 100 100" width="52" height="52">
+              <defs><mask id="cres"><rect width="100" height="100" fill="#fff"/><circle cx="64" cy="38" r="34" fill="#000"/></mask></defs>
+              <circle cx="46" cy="52" r="40" fill="url(#gold)" mask="url(#cres)" transform="rotate(-20 50 50)"/>
+            </svg>
+          </div>
+
+          <!-- felt pennant with raised letters -->
+          <div class="pennant">
+            <div class="cloth"></div>
+            <svg class="stitch" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+              <polygon points="12,3 97,20 12,37" fill="none" stroke="#f6efdc" stroke-width="1.5" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" opacity=".6"/>
+            </svg>
+            <div class="strip"></div><i class="tas t1"></i><i class="tas t2"></i><i class="tas t3"></i>
+            <h1>Sasya’s Room</h1>
+          </div>
+
+          <div class="row">
+            <!-- swap the <i> for <img src="models/me.jpg"> to use a real photo -->
+            <div class="polaroid"><span class="tape"></span><i></i></div>
+            <div class="note"><span class="tape"></span><div id="intro"></div></div>
+          </div>
+
+          <!-- felt cutouts -->
+          <svg class="pc" viewBox="0 0 100 100" style="left:7%;top:7%;--r:-14;--d:.2s"><g filter="url(#felt)">
+            <polygon points="50,6 61,38 95,38 67,58 78,92 50,71 22,92 33,58 5,38 39,38" fill="#f7d94c" stroke="#f7d94c" stroke-width="6" stroke-linejoin="round"/></g></svg>
+
+          <svg class="pc" viewBox="0 0 100 100" style="right:7%;top:9%;--r:10;--d:.5s"><g filter="url(#felt)">
+            <rect x="40" y="48" width="20" height="40" rx="9" fill="#e4c7a1"/>
+            <path d="M8 54 Q8 10 50 10 Q92 10 92 54Z" fill="#d8404a"/>
+            <circle cx="30" cy="36" r="5" fill="#fff"/><circle cx="54" cy="26" r="5" fill="#fff"/>
+            <circle cx="72" cy="42" r="5" fill="#fff"/><circle cx="48" cy="44" r="3.5" fill="#fff"/></g></svg>
+
+          <!-- glossy vinyl stickers -->
+          <svg class="pc vinyl" viewBox="0 0 100 100" style="left:8%;bottom:7%;--r:-10;--d:.8s"><g filter="url(#vinyl)">
+            <circle cx="50" cy="24" r="14" fill="#2b2b2b"/><circle cx="50" cy="58" r="34" fill="#e0303a"/>
+            <path d="M50 26 V92" stroke="#2b2b2b" stroke-width="3"/>
+            <circle cx="34" cy="48" r="6" fill="#2b2b2b"/><circle cx="66" cy="48" r="6" fill="#2b2b2b"/>
+            <circle cx="35" cy="72" r="6" fill="#2b2b2b"/><circle cx="65" cy="72" r="6" fill="#2b2b2b"/></g></svg>
+
+          <svg class="pc vinyl" viewBox="0 0 100 100" style="right:9%;bottom:8%;--r:12;--d:1.1s"><g filter="url(#vinyl)">
+            <ellipse cx="42" cy="30" rx="12" ry="19" fill="#fff" stroke="#bcd9f2" stroke-width="2" transform="rotate(-25 42 30)"/>
+            <ellipse cx="62" cy="30" rx="12" ry="19" fill="#fff" stroke="#bcd9f2" stroke-width="2" transform="rotate(25 62 30)"/>
+            <ellipse cx="52" cy="60" rx="30" ry="22" fill="#ffd23f"/>
+            <path d="M44 41 V79 M62 42 V78" stroke="#2b2b2b" stroke-width="9"/>
+            <circle cx="24" cy="62" r="11" fill="#2b2b2b"/></g></svg>
+        </div>
+
+        <!-- lower door panel: caterpillar loader + sticker button -->
+        <div class="panel low">
+          <div id="bar"><div id="fill"></div></div>
+          <button id="enter">Come on in →</button>
+
+          <svg class="pc" viewBox="0 0 100 100" style="left:-4px;bottom:-10px;--r:-8;--d:1.4s"><g filter="url(#felt)">
+            <path d="M50 94 Q10 72 14 42 Q18 26 50 30 Q82 26 86 42 Q90 72 50 94Z" fill="#d8404a"/>
+            <path d="M50 28 L30 14 L42 30 L22 34 L42 40 L50 52 L58 40 L78 34 L58 30 L70 14Z" fill="#4a8a4a"/>
+            <g fill="#ffe27a"><circle cx="34" cy="56" r="2.5"/><circle cx="54" cy="62" r="2.5"/><circle cx="68" cy="52" r="2.5"/><circle cx="46" cy="76" r="2.5"/><circle cx="62" cy="76" r="2.5"/></g></g></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═════════ popup for about / projects / paper / etc ═════════ -->
+  <div id="modal">
+    <div id="box">
+      <button id="x" aria-label="Close">×</button>
+      <div id="mc"></div>
+    </div>
+  </div>
+
+  <!-- three.js r128 + GLTFLoader (both become globals: THREE, THREE.GLTFLoader) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

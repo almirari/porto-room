@@ -203,27 +203,37 @@ function loop(t) {
 }
 loop(0);
 
-// ───────────── loading screen ─────────────
-const WELCOME = 'hi, i’m almira raisa izzatina, or call me sasya — welcome to my room!';
+// ───────────── loading screen (the door) ─────────────
 
+// 1. title letters: split into spans so each one is a little wobbly felt cutout
+const title = document.querySelector('#load h1');
+title.innerHTML = [...title.textContent].map((ch, i) =>
+  ch === ' ' ? '<span class="sp"></span>'
+             : `<span class="felt" style="--r:${(i % 3 - 1) * 3}">${ch}</span>`
+).join('');
+
+// 2. handwritten welcome on the sticky note
+const WELCOME = 'hi, i’m almira raisa izzatina, or call me sasya — welcome to my room!';
 let charCount = 0;
 const typer = setInterval(() => {
   $('intro').textContent = WELCOME.slice(0, ++charCount);
   if (charCount >= WELCOME.length) clearInterval(typer);
 }, 70);
 
+// 3. caterpillar progress bar
 let progress = 0;
 const progressTimer = setInterval(() => {
   progress = Math.min(100, progress + 1.6);
   $('fill').style.width = progress + '%';
   if (progress >= 100) {
     clearInterval(progressTimer);
-    document.querySelector('#load h1').style.opacity = 1;
     $('enter').style.display = 'inline-block';
   }
 }, 50);
 
+// 4. enter: door swings open, then fades away
 $('enter').onclick = () => {
+  $('door').classList.add('open');
   $('load').style.opacity = 0;
   setTimeout(() => $('load').style.display = 'none', 800);
   loaded = true;

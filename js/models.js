@@ -1,29 +1,43 @@
 // js/models.js
 const T = THREE; // global from the script tag in index.html
 
-export function loadModel(scene, url, { x = 0, y = 0, z = 0, height = 1, ry = 0 } = {}) {
+// Loads a .glb into the scene. Returns a group right away (the model fills in once loaded),
+// so you can pass the result to on(...) to make it clickable.
+//   height: make the model this tall        (good for chairs, plants)
+//   length: make its longest side this long (good for beds, rugs, desks)
+//   x, z:   floor position;  y: height of the model's bottom;  ry: rotation
+export function loadModel(scene, url, { x = 0, y = 0, z = 0, height, length, ry = 0 } = {}) {
+  const pivot = new T.Group();
+  pivot.position.set(x, y, z);
+  pivot.rotation.y = ry;
+  scene.add(pivot);
+
   new T.GLTFLoader().load(
     url,
     (gltf) => {
-      const m = gltf.scene;
+      const model = gltf.scene;
 
-      // scale so the model is `height` units tall
-      const size = new T.Box3().setFromObject(m).getSize(new T.Vector3());
+      // scale to the requested size
+      const size = new T.Box3().setFromObject(model).getSize(new T.Vector3());
       console.log('native size of', url, size);
-      m.scale.setScalar(height / size.y);
+      const s = height ? height / size.y
+              : length ? length / Math.max(size.x, size.z)
+              : 1;
+      model.scale.setScalar(s);
 
-      // put the bottom of the model at y, centered on x/z
-      const box = new T.Box3().setFromObject(m);
+      // center it on the pivot with its bottom at y = 0, so rotation spins it in place
+      const box = new T.Box3().setFromObject(model);
       const c = box.getCenter(new T.Vector3());
-      m.position.set(x - c.x, y - box.min.y, z - c.z);
-      m.rotation.y = ry;
+      model.position.set(-c.x, -box.min.y, -c.z);
 
-      m.traverse((o) => {
+      model.traverse((o) => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
-      scene.add(m);
+      pivot.add(model);
     },
     undefined,
     (err) => console.error('Failed to load', url, err)
   );
+
+  return pivot;
 }
