@@ -203,37 +203,37 @@ function loop(t) {
 }
 loop(0);
 
-// ───────────── loading screen (the door) ─────────────
+// ───────────── loading screen ─────────────
 
-// 1. title letters: split into spans so each one is a little wobbly felt cutout
-const title = document.querySelector('#load h1');
-title.innerHTML = [...title.textContent].map((ch, i) =>
-  ch === ' ' ? '<span class="sp"></span>'
-             : `<span class="felt" style="--r:${(i % 3 - 1) * 3}">${ch}</span>`
-).join('');
-
-// 2. handwritten welcome on the sticky note
-const WELCOME = 'hi, i’m almira raisa izzatina, or call me sasya — welcome to my room!';
+// 1. welcome text types itself out (two lines: small intro, then a bigger "welcome")
+const LINE1 = 'hi, i’m almira raisa izzatina, or call me sasya —';
+const LINE2 = 'welcome to my room!';
+const FULL_LEN = LINE1.length + 1 + LINE2.length;
 let charCount = 0;
 const typer = setInterval(() => {
-  $('intro').textContent = WELCOME.slice(0, ++charCount);
-  if (charCount >= WELCOME.length) clearInterval(typer);
-}, 70);
+  charCount++;
+  const t1 = LINE1.slice(0, charCount);
+  const t2 = charCount > LINE1.length ? LINE2.slice(0, charCount - LINE1.length - 1) : '';
+  const caret = charCount < FULL_LEN ? '<i class="caret"></i>' : '';
+  $('intro').innerHTML =
+    `<span class="l1">${t1.replace('sasya', '<b>sasya</b>')}${t2 ? '' : caret}</span>` +
+    (t2 ? `<span class="l2">${t2}${caret}</span>` : '');
+  if (charCount >= FULL_LEN) clearInterval(typer);
+}, 40);
 
-// 3. caterpillar progress bar
+// 2. progress bar (when it hits 100%, "click anywhere to resume" appears)
 let progress = 0;
 const progressTimer = setInterval(() => {
   progress = Math.min(100, progress + 1.6);
   $('fill').style.width = progress + '%';
   if (progress >= 100) {
     clearInterval(progressTimer);
-    $('enter').style.display = 'inline-block';
+    $('enter').style.display = 'block';
   }
 }, 50);
 
-// 4. enter: door swings open, then fades away
+// 3. click anywhere (#enter covers the whole screen) → fade out and start
 $('enter').onclick = () => {
-  $('door').classList.add('open');
   $('load').style.opacity = 0;
   setTimeout(() => $('load').style.display = 'none', 800);
   loaded = true;

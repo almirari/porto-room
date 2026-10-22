@@ -1,0 +1,103 @@
+/* ═════════ Loading screen — animated door ═════════
+   Layers (all sized from one 16:9 "stage" that behaves like background-size: cover):
+   door plate  →  swinging sign + swaying stars  →  text / bar / "click to resume"
+   Load this AFTER style.css so these rules win. */
+
+#load{
+  position:fixed; inset:0; z-index:100; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  gap:14px; padding:0 24px 3.5vh; text-align:center;
+  background:#393f50;                       /* same navy as the picture's wall */
+  font-family:Verdana, Geneva, sans-serif; color:#fff;
+}
+/* transparent dark gradient behind the text, for readability */
+#load::before{
+  content:""; position:absolute; left:0; right:0; bottom:0; height:50%;
+  background:linear-gradient(to top, rgba(10,12,24,.92) 0%, rgba(10,12,24,.65) 50%, rgba(10,12,24,0) 100%);
+  pointer-events:none;
+}
+#load > *{ position:relative; }
+
+/* ── stage: the picture, scaled to cover the screen ── */
+#load > .stage{
+  --w:max(100vw, calc(100vh * 16 / 9));     /* stage width; every size below is a fraction of it */
+  position:absolute; z-index:-1; left:50%; top:50%; translate:-50% -50%;
+  width:var(--w); aspect-ratio:16 / 9; overflow:hidden; pointer-events:none;
+}
+.stage img{ display:block; user-select:none; -webkit-user-drag:none; }
+.stage .plate{ position:absolute; inset:0; width:100%; height:100%; }   /* door, no sign, no shadow */
+
+/* ── the dangling sign: hangs from the push-pin, two slow swings layered together ── */
+.stage .swing, .stage .swing2{ transform-origin:46.861% 3.275%; }       /* = the pin */
+.stage .swing{
+  position:absolute; left:41.736%; top:34.012%; width:15.486%; aspect-ratio:446 / 397;
+  animation:sign-swing 5.6s ease-in-out infinite alternate;
+}
+.stage .swing2{ width:100%; animation:sign-sway 3.3s ease-in-out infinite alternate; }
+.stage .sign{
+  width:100%; height:auto;
+  filter:drop-shadow(calc(var(--w) * .0007) calc(var(--w) * .0022) calc(var(--w) * .0020) rgba(20,22,36,.38));
+}
+@keyframes sign-swing{ from{ rotate:-2.6deg; } to{ rotate:2.6deg; } }
+@keyframes sign-sway { from{ rotate:-.9deg;  } to{ rotate:.9deg;  } }
+
+/* ── star garland: each star hangs from the string and sways gently (softer + slower than the sign) ── */
+.stage .star{
+  position:absolute; left:var(--l); top:var(--t); width:var(--w); aspect-ratio:var(--r);
+  transform-origin:var(--ox) var(--oy);
+  animation:star-swing var(--dur) ease-in-out var(--del) infinite alternate;
+}
+.stage .star img{ width:100%; height:auto; }
+@keyframes star-swing{ from{ rotate:-3.6deg; } to{ rotate:3.6deg; } }
+
+/* ── text, bar, resume ── */
+#load h1{ display:none; }
+#intro{
+  margin:0; max-width:min(760px, 92vw); min-height:clamp(64px, 8.5vw, 96px);
+  font-family:Verdana, Geneva, sans-serif; font-weight:400; color:#fff;
+  text-shadow:0 1px 8px rgba(0,0,0,.6);
+}
+#intro .l1{                                   /* small intro line; "sasya" picks up the sign's gold */
+  display:block; font-size:clamp(12px, 1.4vw, 16px); letter-spacing:.07em; color:rgba(255,255,255,.82);
+}
+#intro .l1 b{ color:#f2cf75; font-weight:700; }
+#intro .l2{                                   /* big welcome line */
+  display:block; margin-top:.35em; font-size:clamp(22px, 3.2vw, 36px); font-weight:700; letter-spacing:.01em;
+}
+#intro .caret{                                /* blinking typing cursor */
+  display:inline-block; width:2px; height:1em; margin-left:4px; vertical-align:-.12em;
+  background:#fff; animation:caret 1s steps(1) infinite;
+}
+@keyframes caret{ 50%{ opacity:0; } }
+#bar{
+  width:min(420px, 70vw); height:6px; border-radius:999px; margin-bottom:24px;
+  background:rgba(255,255,255,.22); overflow:hidden;
+}
+#bar::before, #bar::after, #fill::before, #fill::after{ content:none !important; display:none !important; }
+#bar > :not(#fill), #fill > *{ display:none !important; }
+#fill{
+  height:100%; background:#fff !important; background-image:none !important;
+  border-radius:inherit; font-size:0; color:transparent; animation:none !important;
+}
+#load > :not(h1):not(#intro):not(#bar):not(#enter):not(.stage){ display:none !important; }
+
+/* "click anywhere to resume": #enter is a full-screen invisible click target,
+   with its text drawn near the bottom (display is still controlled by main.js) */
+#enter, #enter:hover, #enter:active, #enter:focus{
+  position:fixed !important; inset:0 !important; z-index:5;
+  width:100% !important; height:100% !important; box-sizing:border-box;
+  margin:0 !important; padding:calc(100vh - 3.5vh - 22px) 0 0 !important;
+  transform:none !important; rotate:none !important; translate:none !important; scale:none !important;
+  background:none !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; outline:none; text-shadow:none;
+  font-family:Verdana, Geneva, sans-serif; font-size:14px; letter-spacing:.08em; line-height:20px;
+  text-align:center; cursor:pointer; -webkit-tap-highlight-color:transparent;
+}
+#enter{ animation:resume-pulse 1.8s ease-in-out infinite; }
+@keyframes resume-pulse{ 0%,100%{ color:rgba(255,255,255,.45); } 50%{ color:#fff; } }
+#enter::before, #enter::after{ content:none !important; display:none !important; }
+
+/* reduced motion: show the still picture exactly as drawn */
+@media (prefers-reduced-motion: reduce){
+  #load .stage *{ animation:none !important; }
+}
