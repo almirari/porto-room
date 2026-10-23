@@ -41,7 +41,7 @@ scene.background = new T.Color(0xffd9b0);
 scene.fog = new T.Fog(0xffd9b0, 8, 20);
 
 const camera = new T.PerspectiveCamera(70, 1, 0.1, 50);
-camera.position.set(0, 1.6, 1.0);  
+camera.position.set(0.5, 1.6, 2.8);
 
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
@@ -76,13 +76,15 @@ loadModels(scene, col).catch(e => console.warn(e)).finally(() => modelsReady = t
 const ROOM_LIMIT = 2.0; 
 const BODY = 0.3; // how close you can get to furniture
 
+const inRoom = (x, z) => Math.abs(x) < ROOM_LIMIT && Math.abs(z) < ROOM_LIMIT;
+const inNook = (x, z) => x > -0.4 && x < 1.4 && z >= ROOM_LIMIT - 0.1 && z < 3.1; // matches the doorway
+
 const canStandAt = (x, z) =>
-  Math.abs(x) < ROOM_LIMIT &&
-  Math.abs(z) < ROOM_LIMIT &&
+  (inRoom(x, z) || inNook(x, z)) &&
   !col.some(([x0, x1, z0, z1]) => x > x0 - BODY && x < x1 + BODY && z > z0 - BODY && z < z1 + BODY);
 
 // ───────────── state ─────────────
-let yaw = 0, pitch = 0;
+let yaw = 0.35, pitch = -0.12;
 let drag = null;        // set while a finger/mouse is down on the canvas
 let walkTarget = null;  // where tap-to-move is heading
 const keys = {};

@@ -179,9 +179,121 @@ export function buildRoom(scene, on, actions) {
 
   box(2 * HALF, 0.1, 2 * HALF, 0xfdf6ea, 0, CEIL, 0, 0, false); // ceiling
 
-  [-HALF, HALF].forEach(z => box(2 * HALF, CEIL, 0.1, 0xf1e2cc, 0, CEIL / 2, z, 0, false)); // back + front walls: warm cream
-  box(0.1, CEIL, 2 * HALF, 0xcddcc4, -HALF, CEIL / 2, 0, 0, false); // left wall: sage (collage wall)
-  box(0.1, CEIL, 2 * HALF, 0xcfe0ec,  HALF, CEIL / 2, 0, 0, false); // right wall: powder blue (posters pop)
+  // textured wall piece: UVs come from world position, so neighbouring pieces line up
+  const TILE = 2.0;   // meters covered by one copy of the texture (raise = bigger pattern)
+  const wallTex = new T.TextureLoader().load('textures/wall.avif');
+  wallTex.wrapS = wallTex.wrapT = T.MirroredRepeatWrapping;   // mirrored = no visible tile edges
+  wallTex.anisotropy = 8;
+  if (T.SRGBColorSpace) wallTex.colorSpace = T.SRGBColorSpace;
+  const wallMat = new T.MeshLambertMaterial({ map: wallTex, color: 0xffffff });
+
+  const wallBox = (w, h, d, x, y, z) => {
+    const geo = new T.BoxGeometry(w, h, d);
+    const pos = geo.attributes.position, nor = geo.attributes.normal, uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) {
+      const wx = pos.getX(i) + x, wy = pos.getY(i) + y, wz = pos.getZ(i) + z;
+      const nx = Math.abs(nor.getX(i)), ny = Math.abs(nor.getY(i));
+      if (nx > 0.5)      uv.setXY(i, wz / TILE, wy / TILE);   // faces looking along x
+      else if (ny > 0.5) uv.setXY(i, wx / TILE, wz / TILE);   // top / bottom
+      else               uv.setXY(i, wx / TILE, wy / TILE);   // faces looking along z
+    }
+    const m = new T.Mesh(geo, wallMat);
+    m.position.set(x, y, z);
+    m.receiveShadow = true;
+    scene.add(m);
+    return m;
+  };
+
+  // back wall
+  const WIN_X   = [-1.5, -0.3];   // window centers (same as the addWindow calls)
+  const OPEN_HW = 0.42;           // half-width of each opening (a bit smaller than the window, so the frame hides the edge)
+  const OPEN_Y0 = 1.05, OPEN_Y1 = 2.35;
+  const wallSpan = (xa, xb) => wallBox(xb - xa, CEIL, 0.1, (xa + xb) / 2, CEIL / 2, -HALF);
+
+  wallSpan(-HALF, WIN_X[0] - OPEN_HW);                   // left of window 1
+  wallSpan(WIN_X[0] + OPEN_HW, WIN_X[1] - OPEN_HW);      // pillar between the windows
+  wallSpan(WIN_X[1] + OPEN_HW, HALF);                    // right of window 2
+  WIN_X.forEach(cx => {
+    wallBox(2 * OPEN_HW, OPEN_Y0, 0.1, cx, OPEN_Y0 / 2, -HALF);                                   // below
+    wallBox(2 * OPEN_HW, CEIL - OPEN_Y1, 0.1, cx, OPEN_Y1 + (CEIL - OPEN_Y1) / 2, -HALF);        // above
+  });
+
+  // left + right walls
+  wallBox(0.1, CEIL, 2 * HALF, -HALF, CEIL / 2, 0);
+  wallBox(0.1, CEIL, 2 * HALF,  HALF, CEIL / 2, 0);
+
+  // front wall with a doorway + an alcove sticking out past it
+  const DOOR_X = 0.5;   // doorway center
+  const DOOR_W = 1.8;   // doorway / alcove width (x = -0.4 .. 1.4)
+  const DOOR_H = 2.3;   // doorway / alcove height
+  const NOOK_D = 0.9;   // how far the alcove sticks out
+  const x0 = DOOR_X - DOOR_W / 2, x1 = DOOR_X + DOOR_W / 2;
+
+  wallBox(x0 + HALF, CEIL, 0.1, (-HALF + x0) / 2, CEIL / 2, HALF);                   // left piece
+  wallBox(HALF - x1, CEIL, 0.1, (x1 + HALF) / 2,  CEIL / 2, HALF);                   // right piece
+  wallBox(DOOR_W, CEIL - DOOR_H, 0.1, DOOR_X, DOOR_H + (CEIL - DOOR_H) / 2, HALF);  // lintel
+
+  const nookZ = HALF + NOOK_D / 2;
+  wallBox(0.1, DOOR_H, NOOK_D + 0.1, x0 - 0.05, DOOR_H / 2, nookZ);                  // alcove side walls
+  wallBox(0.1, DOOR_H, NOOK_D + 0.1, x1 + 0.05, DOOR_H / 2, nookZ);
+  wallBox(DOOR_W + 0.2, DOOR_H, 0.1, DOOR_X, DOOR_H / 2, HALF + NOOK_D + 0.05);      // alcove end wall
+
+  // nook floor: same wood texture, UVs from world position so it continues the room's floor
+  const nookFloorTex = new T.TextureLoader().load('textures/floor.jpg');
+  nookFloorTex.wrapS = nookFloorTex.wrapT = T.RepeatWrapping;
+  nookFloorTex.anisotropy = 8;
+  if (T.SRGBColorSpace) nookFloorTex.colorSpace = T.SRGBColorSpace;
+
+  const nookFloorGeo = new T.PlaneGeometry(DOOR_W, NOOK_D);
+  nookFloorGeo.rotateX(-Math.PI / 2);
+  nookFloorGeo.translate(DOOR_X, 0.05, nookZ);        // 0.05 = top of the main floor
+  const nfPos = nookFloorGeo.attributes.position, nfUv = nookFloorGeo.attributes.uv;
+  const FLOOR_TILE = (2 * HALF) / FLOOR_REPEAT;       // meters per texture copy
+  for (let i = 0; i < nfPos.count; i++) {
+    nfUv.setXY(i, (nfPos.getX(i) + HALF) / FLOOR_TILE, (HALF - nfPos.getZ(i)) / FLOOR_TILE);
+  }
+  const nookFloor = new T.Mesh(nookFloorGeo, new T.MeshLambertMaterial({ map: nookFloorTex, color: 0xffffff }));
+  nookFloor.receiveShadow = true;
+  scene.add(nookFloor);
+
+  // nook ceiling
+  box(DOOR_W + 0.2, 0.1, NOOK_D + 0.1, 0xfdf6ea, DOOR_X, DOOR_H + 0.05, nookZ, 0, false);
+
+  // the door, on the end wall
+  const DOOR_RY     = 0;                 // if the door faces the wall, set to Math.PI
+  const DOOR_MODEL_H = 2.15;             // door height in meters (frame included, if the model has one)
+  const endWallZ    = HALF + NOOK_D;     // inner face of the alcove's end wall
+
+  loadModel(scene, 'models/door.glb', {
+    x: DOOR_X, y: 0.05, z: endWallZ - 0.05, height: DOOR_MODEL_H, ry: DOOR_RY,
+    onLoad: ({ holder }) => {
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      let s = b.getSize(new T.Vector3());
+
+      // a door is wide and thin: if it's thinner along x than z, it's edge-on, so spin it a quarter turn
+      if (s.z > s.x) {
+        holder.rotation.y += Math.PI / 2;
+        holder.updateMatrixWorld(true);
+        b.setFromObject(holder);
+      }
+
+      // center it on the doorway and push its back flush against the end wall
+      holder.position.x += DOOR_X - (b.min.x + b.max.x) / 2;
+      holder.position.z += endWallZ - b.max.z;
+      holder.updateMatrixWorld(true);
+    },
+  });
+
+  // alcove light so it isn't a dark box
+  const nookLight = new T.PointLight(0xffe6cc, 0.35, 3);
+  nookLight.position.set(DOOR_X, 2.1, nookZ);
+  scene.add(nookLight);
+
+  // alcove wall collision (the opening stays walkable)
+  col.push([x0 - 0.1, x0, F, HALF + NOOK_D + 0.1]);
+  col.push([x1, x1 + 0.1, F, HALF + NOOK_D + 0.1]);
+  col.push([x0, x1, HALF + NOOK_D, HALF + NOOK_D + 0.1]);
 
   const rug = mesh(new T.CircleGeometry(1.0, 32), 0x2b3f6b, -0.2, 0.06, 0.2, 0, false);
   rug.rotation.x = -Math.PI / 2;
@@ -227,8 +339,6 @@ export function buildRoom(scene, on, actions) {
         const w = frame.max.x - frame.min.x;
         const h = frame.max.y - frame.min.y;
 
-        // glowing sky right behind the panes, sized to the frame
-        picture(w - 0.06, h - 0.06, canvasTexture(drawSunnyGlass), cx, (frame.min.y + frame.max.y) / 2, B + 0.01, 0, true);
         // sill
         box(w + 0.2, 0.06, 0.28, 0xfffaf0, cx, frame.min.y - 0.03, B + 0.14, 0, false);
       },
@@ -239,6 +349,46 @@ export function buildRoom(scene, on, actions) {
   // two windows side by side, centered between the left wall and the desk
   addWindow(-1.5, -0.22, 0.8);
   addWindow(-0.3,  0.22, 0.6);
+
+  // ═════════ building outside the windows (models/building.glb) ═════════
+  const BUILDING_H   = 30;      // building height in meters (about 10 floors, ~3 m each)
+  const BUILDING_Y   = -12;     // ground level in meters. Lower = you see higher floors, raise = lower floors
+  const BUILDING_GAP = 10;      // distance from your back wall to the nearest face of the building
+  const BUILDING_X   = -0.9;    // sideways center (-0.9 = centered on your two windows)
+  const BUILDING_RY  = 0;       // which face looks at you: try 0, Math.PI / 2, Math.PI, -Math.PI / 2
+
+  scene.background = new T.Color(0xcfe3f5);   // sky color (only visible through the windows)
+
+  loadModel(scene, 'models/building.glb', {
+    x: BUILDING_X, y: BUILDING_Y, z: B - BUILDING_GAP - 10, height: BUILDING_H, ry: BUILDING_RY,
+    onLoad: ({ obj, holder }) => {
+      // unlit materials so the brick stays bright, and nothing outside casts shadows into the room
+      obj.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = false;
+        o.receiveShadow = false;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        const basic = mats.map(m => new T.MeshBasicMaterial({
+          map: m.map || null,
+          alphaMap: m.alphaMap || null,      // keeps the see-through fire escape grating
+          alphaTest: m.alphaTest || 0,
+          color: m.map ? 0xffffff : (m.color || 0xffffff),
+          side: T.DoubleSide,
+          transparent: m.transparent,
+          opacity: m.opacity,
+        }));
+        o.material = Array.isArray(o.material) ? basic : basic[0];
+      });
+
+      // place it: centered on BUILDING_X, ground at BUILDING_Y, nearest face BUILDING_GAP behind the wall
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      holder.position.x += BUILDING_X - (b.min.x + b.max.x) / 2;
+      holder.position.y += BUILDING_Y - b.min.y;
+      holder.position.z += (B - BUILDING_GAP) - b.max.z;
+      holder.updateMatrixWorld(true);
+    },
+  });
 
   // ═════════ desk nook (back right): hacked-PC desk model ═════════
   const DESK_LEN = 2.1;
@@ -452,20 +602,6 @@ export function buildRoom(scene, on, actions) {
   deskLight.position.set(0.8, 1.25, deskZ);
   scene.add(deskLight);
 
-  // ═════════ table + record player (left wall, back) ═════════
-  // table is scaled down from 2.4 to TABLE_LEN, so its top comes down with it
-  const TABLE_LEN = 1.95;
-  const TABLE_TOP = 0.05 + 0.79 * (TABLE_LEN / 2.4); // was 0.84 at length 2.4
-  const tableX = L + 0.43;
-  const tableZ = B + TABLE_LEN / 2;
-  const table = loadModel(scene, 'models/wooden_table.glb', { x: tableX, y: 0.05, z: tableZ, length: TABLE_LEN, ry: Math.PI / 2, brighten: 4 });
-  col.push([L, L + 0.85, B, B + TABLE_LEN]);
-  on(table, 'The table — projects', actions.projects);
-
-  loadModel(scene, 'models/recordplayer.glb', { x: tableX, y: TABLE_TOP, z: tableZ + 0.45, length: 0.65, ry: Math.PI / 2, brighten: 0.5 });
-  loadModel(scene, 'models/vinyls.glb',       { x: tableX, y: TABLE_TOP, z: tableZ - 0.4,  length: 1.0,  ry: Math.PI / 2, brighten: 1 });
-  loadModel(scene, 'models/vinyls.glb',       { x: tableX - 0.05, y: 0.05, z: tableZ,      length: 1.1,  ry: -Math.PI / 2, brighten: 0.7 });
-
   // ═════════ bed: measured after it loads, so any bed model works ═════════
   const BED_LEN  = 2.2;     // length of the bed (longest side), in meters
   const BED_FLIP = false;   // true = turn the bed around if the head is at the wrong end
@@ -507,10 +643,16 @@ export function buildRoom(scene, on, actions) {
       mushroomLamp(nsX, 0.46, F - 0.25, 0.4);
       col.push([nsX - 0.25, nsX + 0.25, F - 0.5, F]);
 
-      // usagi sits on the mattress, near the head
-      const bedTop = b.max.y - 0.05;
+      // usagi sits on the bed surface: drop a ray from above and land where it hits
+      const usagiX = (b.min.x + b.max.x) / 2;
+      const usagiZ = F - 0.55;           // a bit away from the headboard so the ray hits the mattress
+      const SINK   = 0.03;               // how far he settles into the duvet (raise to sink more)
+      const ray = new T.Raycaster(new T.Vector3(usagiX, 3, usagiZ), new T.Vector3(0, -1, 0));
+      const hits = ray.intersectObject(holder, true);
+      const bedTop = hits.length ? hits[0].point.y - SINK : b.max.y - 0.25;
+      console.log('[usagi] landing y', bedTop.toFixed(2), hits.length ? '(ray hit)' : '(no hit, fallback)');
       const usagi = loadModel(scene, 'models/usagi.glb', {
-        x: (b.min.x + b.max.x) / 2, y: bedTop, z: F - 0.35,
+        x: usagiX, y: bedTop, z: usagiZ,
         height: 0.65, ry: Math.PI, brighten: 0.5,
       });
       usagi.rotation.order = 'YXZ';   // so the tilt happens in his own frame
@@ -519,9 +661,10 @@ export function buildRoom(scene, on, actions) {
   });
   on(bed, 'The bed — about me', actions.about);
 
-  // ═════════ dresser (right wall, front) + globe + camera ═════════
+  // ═════════ dresser (right wall, front) + record player + vinyl box ═════════
   const dresserX = R - 0.35;
   const dresserZ = F - 0.77;      // 1.58 (spans 0.83 .. 2.33)
+  const DRESSER_TOP = 1.1;
   box(0.7, 1.1, 1.5, 0x9db89a, dresserX, 0.55, dresserZ); // sage dresser
   col.push([dresserX - 0.35, R, dresserZ - 0.75, dresserZ + 0.75]);
 
@@ -530,19 +673,9 @@ export function buildRoom(scene, on, actions) {
     sphere(0.04, 0x5a3a20, dresserX - 0.4, y + 0.1, dresserZ);           // knob
   });
 
-  const globe = sphere(0.25, 0x5fb6d4, dresserX, 1.5, dresserZ + 0.37);
-  const globeTex = canvasTexture((g, w, h) => {
-    g.fillStyle = '#6fc3e0'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#9ad28a';
-    [[50, 50, 38, 20], [130, 40, 28, 28], [185, 85, 34, 16], [90, 100, 26, 14], [225, 35, 22, 12]].forEach(([x, y, rx, ry]) => {
-      g.beginPath(); g.ellipse(x, y, rx, ry, 0.4, 0, 7); g.fill();
-    });
-  }, 256, 128);
-  globe.material = new T.MeshLambertMaterial({ map: globeTex });
-  cylinder(0.02, 0.25, 0x555555, dresserX, 1.225, dresserZ + 0.37);   // globe stand
-  on(globe, 'The globe — find me online', actions.contact);
-
-  box(0.25, 0.15, 0.15, 0x222222, dresserX, 1.18, dresserZ - 0.45);  // camera
+  // record player + box of vinyls on top, facing into the room (ry = -PI/2 faces away from the right wall)
+  loadModel(scene, 'models/recordplayer.glb', { x: dresserX, y: DRESSER_TOP, z: dresserZ + 0.38, length: 0.65, ry: -Math.PI / 2, brighten: 0.5 });
+  loadModel(scene, 'models/vinyls.glb',       { x: dresserX, y: DRESSER_TOP, z: dresserZ - 0.42, length: 1,  ry: -Math.PI / 2, brighten: 1 });
 
   // ═════════ right wall: whiteboard + posters + corkboard ═════════
   const poster = (text, bgColor, z, y) => {
@@ -638,12 +771,14 @@ export function buildRoom(scene, on, actions) {
     }
   }
 
-  // bean bag chair (front, between the nightstand and the dresser)
-  loadModel(scene, 'models/bean_bag.glb', { x: 0.35, y: 0.05, z: 1.75, height: 0.75, ry: Math.PI / 2, brighten: -0.5 });
-
-  // books and mug
-  loadModel(scene, 'models/books.glb',     { x: -0.45, y: 0.1,  z: 1.35, length: 0.9, ry: -0.4, brighten: 0.3 });
-  loadModel(scene, 'models/coffeemug.glb', { x: 0.15,  y: 0.06, z: 1.15, height: 0.2, ry: 0.8,  brighten: 0.3 });
+  // reading corner (back-left, under the windows): bean bag turned toward the spawn point, books, mug
+  const BEAN_X = -1.6, BEAN_Z = -1.7;
+  const BEAN_TURN = -Math.PI / 2;   // if it faces the wrong way, try Math.PI / 2 or Math.PI
+  const beanFacing = Math.atan2(0.5 - BEAN_X, 2.8 - BEAN_Z) + BEAN_TURN;
+  loadModel(scene, 'models/bean_bag.glb',  { x: BEAN_X, y: 0.05, z: BEAN_Z, height: 0.75, ry: beanFacing, brighten: -0.5 });
+  loadModel(scene, 'models/books.glb',     { x: -0.7,  y: 0.1,  z: -2.0,  length: 0.9,  ry: 0.3, brighten: 0.3 });
+  loadModel(scene, 'models/coffeemug.glb', { x: -0.95, y: 0.06, z: -1.35, height: 0.2,  ry: 0.8, brighten: 0.3 });
+  col.push([-2.1, -1.1, -2.2, -1.2]);
 
   // ═════════ fairy lights (back wall, draped in a curve, with soft glow) ═════════
   const FAIRY_COLORS = [0xffd070, 0xff8fb5, 0xfff3b0];
