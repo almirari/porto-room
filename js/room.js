@@ -8,7 +8,7 @@ const T = THREE;
 // 4.8 x 4.8 m (about 23 m²) is roughly a generous dorm room.
 // L / R / B / F are the inner faces of the left, right, back and front walls.
 const HALF  = 2.4;
-const CEIL  = 2.7;
+const CEIL  = 3.8;
 const INNER = HALF - 0.05;
 const L = -INNER, R = INNER, B = -INNER, F = INNER;
 const GAP = 0.02; // wall pictures sit this far in front of the wall
@@ -665,11 +665,11 @@ export function buildRoom(scene, on, actions) {
   const dresserX = R - 0.35;
   const dresserZ = F - 0.77;      // 1.58 (spans 0.83 .. 2.33)
   const DRESSER_TOP = 1.1;
-  box(0.7, 1.1, 1.5, 0x9db89a, dresserX, 0.55, dresserZ); // sage dresser
+  box(0.7, 1.1, 1.5, 0xe6c9a0, dresserX, 0.55, dresserZ); // sage dresser
   col.push([dresserX - 0.35, R, dresserZ - 0.75, dresserZ + 0.75]);
 
   [0.2, 0.5, 0.8].forEach(y => {
-    box(0.04, 0.25, 1.35, 0xb7cfb0, dresserX - 0.36, y + 0.1, dresserZ); // drawer front
+    box(0.04, 0.25, 1.35, 0xe6c9a0, dresserX - 0.36, y + 0.1, dresserZ); // drawer front
     sphere(0.04, 0x5a3a20, dresserX - 0.4, y + 0.1, dresserZ);           // knob
   });
 
@@ -692,8 +692,21 @@ export function buildRoom(scene, on, actions) {
     };
     return picture(0.7, 1.0, canvasTexture(draw), R - GAP, y, z, -Math.PI / 2);
   };
-  poster('STAY CURIOUS', '#e8606f', 0.5, 1.95);
-  poster('LOFI BEATS',   '#9b7fe0', 1.3, 1.95);
+
+  // vinyl poster collage, centered on the dresser
+  const VINYL_POSTER_H = 2.0;
+  const VINYL_POSTER_W = VINYL_POSTER_H * (469 / 582);   // keeps the image's proportions
+  const vinylTex = new T.TextureLoader().load('textures/vinylposter.png');
+  if (T.SRGBColorSpace) vinylTex.colorSpace = T.SRGBColorSpace;
+  vinylTex.anisotropy = 8;
+  const vinylPoster = picture(
+  VINYL_POSTER_W, VINYL_POSTER_H, vinylTex,
+  R - GAP, 2.5, dresserZ - 0.2,
+  -Math.PI / 2
+  );
+  vinylPoster.material.transparent = true;
+  vinylPoster.material.alphaTest = 0.05;   // fully clear pixels are skipped, avoids dark fringes at the edges
+  vinylPoster.material.needsUpdate = true;
 
   const drawWhiteboard = (g, w, h) => {
     g.fillStyle = '#fffdf8';
@@ -719,22 +732,6 @@ export function buildRoom(scene, on, actions) {
   box(0.05, 1.1, 1.6, 0xffffff, R, 1.7, -0.75); // whiteboard frame
   const whiteboard = picture(1.5, 1.0, canvasTexture(drawWhiteboard), R - 0.05, 1.7, -0.75, -Math.PI / 2);
   on(whiteboard, 'The whiteboard — my paper', actions.paper);
-
-  // corkboard with stickers
-  const drawCork = (g, w, h) => {
-    g.fillStyle = '#c99a63'; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 400; i++) {
-      g.fillStyle = Math.random() > 0.5 ? '#b8884f' : '#d6aa75';
-      g.fillRect(Math.random() * w, Math.random() * h, 3, 3);
-    }
-    const stickers = [['#ff8fb5', 40, 50], ['#8fd3c8', 150, 90], ['#ffd36b', 70, 160], ['#b9a7e8', 170, 170], ['#ffffff', 110, 40]];
-    stickers.forEach(([c, x, y]) => {
-      g.fillStyle = c; g.beginPath(); g.arc(x, y, 22, 0, 7); g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.6)'; g.beginPath(); g.arc(x - 6, y - 6, 6, 0, 7); g.fill();
-    });
-    g.strokeStyle = '#fffaf0'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10);
-  };
-  wallArt(0.65, 0.55, drawCork, R - GAP, 1.75, 2.0, -Math.PI / 2, 0.01);
 
   // ivy hanging down the right wall (back corner, above the desk)
   vine(R - 0.07, CEIL - 0.05, -1.85, 0.6);

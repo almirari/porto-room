@@ -37,3 +37,13 @@ door https://sketchfab.com/3d-models/door-with-doorframe-c29da62ca4e34dbb9801f98
 bookshelf https://sketchfab.com/3d-models/bookshelf-cc0-71af93b1d15f4f48ad836d36110626f7
 
 building https://sketchfab.com/3d-models/building-02-e22ece3fd35c4bd4a3d90321c1b2a806
+
+clock https://sketchfab.com/3d-models/free-wall-clock-2533ef500ece4fcc804872c706df036b
+
+architect lamp https://sketchfab.com/3d-models/luxo-l-1p-orange-architects-table-lamp-f27b6bc0cac8456c937a5b27b343ede5
+
+green baseball cap https://sketchfab.com/3d-models/california-west-coast-printed-cap-est1978-2205cd06e04b4d41936ee0a5cc002845
+
+rb19 https://sketchfab.com/3d-models/oracle-red-bull-f1-car-rb19-2023-e4afe46f3aab4b23a418da06fc163821
+
+tennis racket https://sketchfab.com/3d-models/wilson-tennis-racket-89cfc984eada49a4a926216c1457fbbf
