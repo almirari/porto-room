@@ -9,9 +9,6 @@ let loader = null;
 // (positions are for the 4.8 x 4.8 m room: walls are at x/z = ±2.35)
 export const MODELS = [
   { file: 'plant.glb',  height: 1.3,  x:  2.0,  z:  0.45, rotY: 0,   collide: true  }, // right wall, between whiteboard and dresser
-  { file: 'shelf.glb',  height: 1.8,  x:  1.25, z:  2.1,  rotY: 180, collide: true  }, // front wall, between bean bag and dresser
-  { file: 'lamp.glb',   height: 0.5,  x:  0.75, z: -2.15, y: 0.79, rotY: 0, collide: false }, // desk, left end
-  { file: 'papers.glb', height: 0.05, x:  2.05, z: -2.2,  y: 0.79, rotY: 0, collide: false }, // desk, right end
 ];
 
 // each file is downloaded once; extra copies are clones
@@ -80,6 +77,10 @@ export function loadModel(scene, path, opts = {}) {
       obj.traverse(o => {
         if (!o.isMesh) return;
         [].concat(o.material).forEach(m => {
+          if (!m.emissive) {
+            if (m.color) m.color.multiplyScalar(1 + opts.brighten);
+            return;
+          }
           m.metalness = 0;
           m.roughness = 1;
           if (m.map) { m.emissiveMap = m.map; m.emissive.set(0xffffff); }

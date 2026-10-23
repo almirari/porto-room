@@ -162,7 +162,21 @@ export function buildRoom(scene, on, actions) {
   };
 
   // ═════════ shell: floor, ceiling, walls, rug ═════════
-  box(2 * HALF, 0.1, 2 * HALF, 0xcfa97c, 0, 0,    0, 0, false); // floor: warm oak
+
+  // floor: tiled wood texture
+  const FLOOR_REPEAT = 3;
+  const floorTex = new T.TextureLoader().load('textures/floor.jpg');
+  floorTex.wrapS = floorTex.wrapT = T.RepeatWrapping;
+  floorTex.repeat.set(FLOOR_REPEAT, FLOOR_REPEAT);
+  floorTex.anisotropy = 8;
+  if (T.SRGBColorSpace) floorTex.colorSpace = T.SRGBColorSpace;
+  const floor = new T.Mesh(
+    new T.BoxGeometry(2 * HALF, 0.1, 2 * HALF),
+    new T.MeshLambertMaterial({ map: floorTex, color: 0xffffff })
+  );
+  floor.receiveShadow = true;
+  scene.add(floor);
+
   box(2 * HALF, 0.1, 2 * HALF, 0xfdf6ea, 0, CEIL, 0, 0, false); // ceiling
 
   [-HALF, HALF].forEach(z => box(2 * HALF, CEIL, 0.1, 0xf1e2cc, 0, CEIL / 2, z, 0, false)); // back + front walls: warm cream
@@ -226,97 +240,284 @@ export function buildRoom(scene, on, actions) {
   addWindow(-1.5, -0.22, 0.8);
   addWindow(-0.3,  0.22, 0.6);
 
-  // ═════════ desk nook (back right): desk, shelf, PC ═════════
-  const DESK_LEN = 1.8, DESK_D = 0.7;
-  const deskX = R - DESK_LEN / 2 - 0.03;   // 1.42
-  const deskZ = B + DESK_D / 2;            // -2.0
+  // ═════════ desk nook (back right): hacked-PC desk model ═════════
+  const DESK_LEN = 2.1;
+  const deskX = R - DESK_LEN / 2 - 0.03;
+  const deskZ = B + 0.6;   // rough; onLoad pushes it flush to the back wall
 
-  // desk
-  box(DESK_LEN, 0.08, DESK_D, 0xe8c28f, deskX, 0.8, deskZ);
-  box(0.08, 0.8, DESK_D, 0xe8c28f, deskX - DESK_LEN / 2 + 0.04, 0.4, deskZ);
-  box(0.08, 0.8, DESK_D, 0xe8c28f, deskX + DESK_LEN / 2 - 0.04, 0.4, deskZ);
-  col.push([deskX - DESK_LEN / 2, deskX + DESK_LEN / 2, B, B + DESK_D]);
+  // ── settings ──
+  const CHAIR_HUE = 240;       // 240 = blue. Red is 0.
+  const SCREEN_TUNER = false;  // true = move the screens with the keyboard (see keys below)
 
-  // wall shelf above the desk
-  const shelfZ = B + 0.2;
-  box(DESK_LEN, 0.08, 0.4, 0xe8c28f, deskX, 1.75, shelfZ);
-  box(0.08, 0.7, 0.4, 0xe8c28f, deskX - DESK_LEN / 2 + 0.04, 1.4, shelfZ);
-  books(0.7, 1.79, shelfZ, 9);
-  sphere(0.16, 0xff8fb5, 2.1, 1.97, shelfZ); // pink figurine (body)
-  sphere(0.1,  0xff8fb5, 2.1, 2.19, shelfZ); // pink figurine (head)
-  box(0.3, 0.16, 0.03, 0xf4a6b8, 1.75, 1.89, shelfZ - 0.05); // pink game console
-
-  // monitor + stand
-  box(0.75, 0.5,  0.05, 0x222222, deskX, 1.1,  deskZ - 0.1);
-  box(0.08, 0.25, 0.08, 0x222222, deskX, 0.95, deskZ - 0.1);
-
-  const drawPcScreen = (g, w, h) => {
-    g.fillStyle = '#1d2b53';
+  // screen drawing (blank dark screen)
+  const drawDark = (g, w, h) => {
+    const grad = g.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, '#12151c');
+    grad.addColorStop(1, '#050608');
+    g.fillStyle = grad;
     g.fillRect(0, 0, w, h);
-    g.fillStyle = '#ffd1e3';
-    g.font = 'bold 34px monospace';
-    g.fillText('GAMES', 70, 80);
-    g.fillStyle = '#ffb347';
-    g.fillRect(110, 110, 50, 50);
-    g.fillStyle = '#fff';
-    g.font = '18px monospace';
-    g.fillText('flappy.exe', 80, 200);
   };
-  const screen = picture(0.7, 0.4, canvasTexture(drawPcScreen), deskX, 1.1, deskZ - 0.07, 0, true);
-  on(screen, 'The PC — play a game', actions.game);
 
-  // desk bits: keyboard, mug, headphones, mushroom lamp
-  box(0.25, 0.02, 0.1, 0xffffff, deskX - 0.4, 0.86, deskZ + 0.22);
-  cylinder(0.06, 0.1, 0xffffff, deskX + 0.65, 0.9, deskZ + 0.05);
-  const headphones = mesh(new T.TorusGeometry(0.08, 0.016, 8, 16), 0x2a2a2a, deskX + 0.45, 0.92, deskZ + 0.15);
-  headphones.rotation.x = Math.PI / 2;
+  // where each screen sits, as FRACTIONS of the desk model's bounding box (saved from the tuner)
+  const SCREENS = [
+    { name: 'monitor',      draw: drawDark, cw: 512, ch: 288, fx: 0.476, fy: 0.768, fz: 0.220, fw: 0.392, fh: 0.314, ry: -0.05, rx: 0.00 },
+    { name: 'side monitor', draw: drawDark, cw: 288, ch: 512, fx: 0.812, fy: 0.760, fz: 0.224, fw: 0.198, fh: 0.473, ry: -0.10, rx: 0.00 },
+    { name: 'laptop',       draw: drawDark, cw: 512, ch: 288, fx: 0.128, fy: 0.574, fz: 0.212, fw: 0.210, fh: 0.163, ry: 0.25,  rx: 0.00 },
+  ];
+
+  // chair: split it out of the single baked mesh and shift its colour
+  const recolorChair = obj => {
+    let target = null;
+    obj.traverse(o => { if (!target && o.isMesh && !Array.isArray(o.material) && o.material.map) target = o; });
+    if (!target) { console.warn('[pc.glb] no textured mesh found, chair not recolored'); return; }
+
+    target.geometry = target.geometry.clone();
+    const g = target.geometry;
+    const pos = g.attributes.position, uv = g.attributes.uv;
+    const idx = g.index ? g.index.array : null;
+    const triCount = (idx ? idx.length : pos.count) / 3;
+    const vi = (t, k) => (idx ? idx[t * 3 + k] : t * 3 + k);
+
+    // weld vertices that share a position, then group triangles into connected pieces
+    const ids = new Map();
+    const weld = new Int32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      const key = Math.round(pos.getX(i) * 1e4) + ',' + Math.round(pos.getY(i) * 1e4) + ',' + Math.round(pos.getZ(i) * 1e4);
+      let id = ids.get(key);
+      if (id === undefined) { id = ids.size; ids.set(key, id); }
+      weld[i] = id;
+    }
+    const parent = new Int32Array(ids.size).map((_, i) => i);
+    const find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+    const union = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
+    for (let t = 0; t < triCount; t++) {
+      union(weld[vi(t, 0)], weld[vi(t, 1)]);
+      union(weld[vi(t, 0)], weld[vi(t, 2)]);
+    }
+
+    // sample the texture so we can tell which pieces are red
+    const map = target.material.map;
+    const SAMPLE = 512;
+    const sc = document.createElement('canvas');
+    sc.width = SAMPLE; sc.height = SAMPLE;
+    const sg = sc.getContext('2d', { willReadFrequently: true });
+    sg.drawImage(map.image, 0, 0, SAMPLE, SAMPLE);
+    const px = sg.getImageData(0, 0, SAMPLE, SAMPLE).data;
+
+    const stats = new Map();   // root -> { tris, red }
+    const triRoot = new Int32Array(triCount);
+    for (let t = 0; t < triCount; t++) {
+      const root = find(weld[vi(t, 0)]);
+      triRoot[t] = root;
+      let s = stats.get(root);
+      if (!s) { s = { tris: 0, red: 0 }; stats.set(root, s); }
+      s.tris++;
+      if (uv) {
+        const u = (uv.getX(vi(t, 0)) + uv.getX(vi(t, 1)) + uv.getX(vi(t, 2))) / 3;
+        const v = (uv.getY(vi(t, 0)) + uv.getY(vi(t, 1)) + uv.getY(vi(t, 2))) / 3;
+        const x = Math.min(SAMPLE - 1, Math.max(0, Math.floor((((u % 1) + 1) % 1) * SAMPLE)));
+        const yv = ((v % 1) + 1) % 1;
+        const y = Math.min(SAMPLE - 1, Math.max(0, Math.floor((map.flipY ? 1 - yv : yv) * SAMPLE)));
+        const p = (y * SAMPLE + x) * 4;
+        if (px[p] > 120 && px[p] > px[p + 1] * 2.2 && px[p] > px[p + 2] * 2.2) s.red++;
+      }
+    }
+
+    // every mostly-red piece counts as chair (backrest, seat, ...)
+    // if the coffee cup or the laptop's red tag turns blue too, raise 40 (try 120); if the seat stays red, lower it (try 15)
+    let chairRoot = -1, best = 0;
+    stats.forEach((s, root) => { if (s.red > best) { best = s.red; chairRoot = root; } });
+    const chairRoots = new Set();
+    stats.forEach((s, root) => { if (s.red >= 40 && s.red >= s.tris * 0.5) chairRoots.add(root); });
+    if (chairRoot >= 0) chairRoots.add(chairRoot);
+    console.log('[pc.glb] pieces found:', stats.size, '| chair pieces:', chairRoots.size);
+    if (!chairRoots.size) { console.warn('[pc.glb] could not find a red piece'); return; }
+
+    const chairIdx = [], restIdx = [];
+    for (let t = 0; t < triCount; t++) {
+      (chairRoots.has(triRoot[t]) ? chairIdx : restIdx).push(vi(t, 0), vi(t, 1), vi(t, 2));
+    }
+    g.setIndex(restIdx);
+
+    const cg = new T.BufferGeometry();
+    for (const k in g.attributes) cg.setAttribute(k, g.attributes[k]);
+    cg.setIndex(chairIdx);
+
+    // copy of the texture with the hue rotated (only the chair uses it)
+    const hc = document.createElement('canvas');
+    hc.width = map.image.width; hc.height = map.image.height;
+    const hg = hc.getContext('2d');
+    hg.filter = `hue-rotate(${CHAIR_HUE}deg)`;
+    hg.drawImage(map.image, 0, 0);
+    const tex = new T.CanvasTexture(hc);
+    tex.flipY = map.flipY;
+    tex.wrapS = map.wrapS; tex.wrapT = map.wrapT;
+    if (map.colorSpace !== undefined) tex.colorSpace = map.colorSpace;
+    if (map.encoding !== undefined) tex.encoding = map.encoding;
+    tex.needsUpdate = true;
+
+    const mat = target.material.clone();
+    mat.map = tex;
+    if (mat.emissiveMap) mat.emissiveMap = tex;
+
+    const chair = new T.Mesh(cg, mat);
+    chair.castShadow = true; chair.receiveShadow = true;
+    target.add(chair);                       // same transform as the parent mesh
+  };
+
+  const pc = loadModel(scene, 'models/pc.glb', {
+    x: deskX, y: 0.05, z: deskZ, length: DESK_LEN, ry: 0, brighten: 0.3,
+    onLoad: ({ obj, holder, size }) => {
+      // 1) snap the desk to the back wall, right corner
+      if (size.z > size.x) holder.rotation.y += Math.PI / 2;
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      holder.position.z += B - b.min.z;
+      holder.position.x += (R - 0.03) - b.max.x;
+      holder.updateMatrixWorld(true);
+
+      // 2) chair colour
+      try { recolorChair(obj); } catch (e) { console.warn('[pc.glb] chair recolor failed', e); }
+
+      // 3) screens: flat dark panels laid over the baked-in screens
+      const wb = new T.Box3().setFromObject(holder);
+      const ws = wb.getSize(new T.Vector3());
+      const apply = s => {
+        s.mesh.position.set(wb.min.x + s.fx * ws.x, wb.min.y + s.fy * ws.y, wb.min.z + s.fz * ws.z);
+        s.mesh.scale.set(s.fw * ws.x, s.fh * ws.y, 1);
+        s.mesh.rotation.set(s.rx || 0, s.ry || 0, 0);
+      };
+      SCREENS.forEach(s => {
+        s.mesh = new T.Mesh(
+          new T.PlaneGeometry(1, 1),
+          new T.MeshBasicMaterial({
+            map: canvasTexture(s.draw, s.cw, s.ch),
+            side: T.DoubleSide,
+            polygonOffset: true,
+            polygonOffsetFactor: -2,
+            polygonOffsetUnits: -2,
+          })
+        );
+        s.mesh.renderOrder = SCREEN_TUNER ? 10 : 0;
+        s.mesh.rotation.order = 'YXZ';
+        scene.add(s.mesh);
+        on(s.mesh, 'The PC — play a game', actions.game);
+        apply(s);
+      });
+
+      // 4) tuner: line the screens up by eye (only when SCREEN_TUNER = true)
+      if (SCREEN_TUNER) {
+        let cur = 0;
+        console.log('[tuner] keys: 1/2/3 pick screen | J/L left-right | I/K up-down | U/O back-front | N/M turn | T/G tilt | Z/X narrower-wider | C/V shorter-taller | hold Shift = fine steps | P = print all numbers');
+        window.addEventListener('keydown', e => {
+          const k = e.code;
+          const s = SCREENS[cur];
+          const step = e.shiftKey ? 0.003 : 0.012;
+          const turn = e.shiftKey ? 0.02 : 0.05;
+          const grow = e.shiftKey ? 0.01 : 0.03;
+          if (k === 'Digit1') cur = 0;
+          else if (k === 'Digit2') cur = 1;
+          else if (k === 'Digit3') cur = 2;
+          else if (k === 'KeyJ') s.fx -= step;
+          else if (k === 'KeyL') s.fx += step;
+          else if (k === 'KeyI') s.fy += step;
+          else if (k === 'KeyK') s.fy -= step;
+          else if (k === 'KeyU') s.fz -= step;
+          else if (k === 'KeyO') s.fz += step;
+          else if (k === 'KeyN') s.ry -= turn;
+          else if (k === 'KeyM') s.ry += turn;
+          else if (k === 'KeyT') s.rx += turn;
+          else if (k === 'KeyG') s.rx -= turn;
+          else if (k === 'KeyZ') s.fw *= 1 - grow;
+          else if (k === 'KeyX') s.fw *= 1 + grow;
+          else if (k === 'KeyC') s.fh *= 1 - grow;
+          else if (k === 'KeyV') s.fh *= 1 + grow;
+          else if (k === 'KeyP') {
+            SCREENS.forEach(t => console.log(`    { name: '${t.name}', draw: drawDark, cw: ${t.cw}, ch: ${t.ch}, fx: ${t.fx.toFixed(3)}, fy: ${t.fy.toFixed(3)}, fz: ${t.fz.toFixed(3)}, fw: ${t.fw.toFixed(3)}, fh: ${t.fh.toFixed(3)}, ry: ${t.ry.toFixed(2)}, rx: ${t.rx.toFixed(2)} },`));
+            return;
+          }
+          else return;
+          const t = SCREENS[cur];
+          apply(t);
+          console.log(`[tuner] ${t.name}: fx: ${t.fx.toFixed(3)}, fy: ${t.fy.toFixed(3)}, fz: ${t.fz.toFixed(3)}, fw: ${t.fw.toFixed(3)}, fh: ${t.fh.toFixed(3)}, ry: ${t.ry.toFixed(2)}, rx: ${t.rx.toFixed(2)}`);
+        });
+      }
+    },
+  });
+  on(pc, 'The PC — play a game', actions.game);
+  col.push([deskX - DESK_LEN / 2, deskX + DESK_LEN / 2, B, B + 1.1]);
+
+  // desk lamp light
   const deskLight = new T.PointLight(0xffd9a0, 0.45, 3);
   deskLight.position.set(0.8, 1.25, deskZ);
   scene.add(deskLight);
 
-  // ═════════ chair (3D model) ═════════
-  loadModel(scene, 'models/chair.glb', { x: deskX, y: 0.05, z: B + DESK_D + 0.45, height: 1.4, ry: Math.PI / 2 });
-
   // ═════════ table + record player (left wall, back) ═════════
   // table is scaled down from 2.4 to TABLE_LEN, so its top comes down with it
-  const TABLE_LEN = 1.7;
+  const TABLE_LEN = 1.95;
   const TABLE_TOP = 0.05 + 0.79 * (TABLE_LEN / 2.4); // was 0.84 at length 2.4
-  const tableX = L + 0.38;
+  const tableX = L + 0.43;
   const tableZ = B + TABLE_LEN / 2;
-  const table = loadModel(scene, 'models/wooden_table.glb', { x: tableX, y: 0.05, z: tableZ, length: TABLE_LEN, ry: Math.PI / 2, brighten: 1 });
-  col.push([L, L + 0.75, B, B + TABLE_LEN]);
+  const table = loadModel(scene, 'models/wooden_table.glb', { x: tableX, y: 0.05, z: tableZ, length: TABLE_LEN, ry: Math.PI / 2, brighten: 4 });
+  col.push([L, L + 0.85, B, B + TABLE_LEN]);
   on(table, 'The table — projects', actions.projects);
 
-  loadModel(scene, 'models/recordplayer.glb', { x: tableX, y: TABLE_TOP, z: tableZ + 0.35, length: 0.55, ry: Math.PI / 2, brighten: 0.5 });
-  loadModel(scene, 'models/vinyls.glb',       { x: tableX, y: TABLE_TOP, z: tableZ - 0.35, length: 0.9,  ry: Math.PI / 2, brighten: 1 });
-  loadModel(scene, 'models/vinyls.glb',       { x: tableX - 0.05, y: 0.05, z: tableZ,      length: 0.9,  ry: -Math.PI / 2, brighten: 0.7 });
+  loadModel(scene, 'models/recordplayer.glb', { x: tableX, y: TABLE_TOP, z: tableZ + 0.45, length: 0.65, ry: Math.PI / 2, brighten: 0.5 });
+  loadModel(scene, 'models/vinyls.glb',       { x: tableX, y: TABLE_TOP, z: tableZ - 0.4,  length: 1.0,  ry: Math.PI / 2, brighten: 1 });
+  loadModel(scene, 'models/vinyls.glb',       { x: tableX - 0.05, y: 0.05, z: tableZ,      length: 1.1,  ry: -Math.PI / 2, brighten: 0.7 });
 
-  // ═════════ bed (left wall, front) + nightstand + plushies ═════════
-  // the bed is scaled down from 3.1 to BED_LEN, so its width and top come down with it
-  const BED_LEN = 2.0;
-  const BED_WID = BED_LEN * 0.613;                 // old bed was 1.9 wide at length 3.1
-  const BED_TOP = 0.05 + 0.77 * (BED_LEN / 3.1);   // was 0.82 at length 3.1
-  const bedX = L + BED_WID / 2;
-  const bedZ = F - BED_LEN / 2;
-  const bed = loadModel(scene, 'models/bed.glb', { x: bedX, y: 0.05, z: bedZ, length: BED_LEN, ry: Math.PI / 2 });
+  // ═════════ bed: measured after it loads, so any bed model works ═════════
+  const BED_LEN  = 2.2;     // length of the bed (longest side), in meters
+  const BED_FLIP = false;   // true = turn the bed around if the head is at the wrong end
+  const bedZ = F - BED_LEN / 2;   // used by the polaroid wall
+
+  const bedCol = [L, L + 1.2, F - BED_LEN, F];   // collision box, corrected once the bed loads
+  col.push(bedCol);
+
+  const bed = loadModel(scene, 'models/bed.glb', {
+    x: L + 0.7, y: 0.05, z: bedZ, length: BED_LEN,
+    ry: Math.PI / 2 + (BED_FLIP ? Math.PI : 0),
+    onLoad: ({ holder }) => {
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      let s = b.getSize(new T.Vector3());
+
+      // the bed's long side should run along z (head at the front wall)
+      if (s.x > s.z) {
+        holder.rotation.y += Math.PI / 2;
+        holder.updateMatrixWorld(true);
+        b.setFromObject(holder);
+        s = b.getSize(new T.Vector3());
+      }
+
+      // push into the corner: left wall + front wall
+      holder.position.x += L - b.min.x;
+      holder.position.z += F - b.max.z;
+      holder.updateMatrixWorld(true);
+      b.setFromObject(holder);
+      s = b.getSize(new T.Vector3());
+      console.log('[bed] size', s.x.toFixed(2), 'x', s.y.toFixed(2), 'x', s.z.toFixed(2), '| top y', b.max.y.toFixed(2));
+
+      // collision box
+      bedCol[0] = b.min.x; bedCol[1] = b.max.x; bedCol[2] = b.min.z; bedCol[3] = b.max.z;
+
+      // nightstand + mushroom lamp, beside the head of the bed
+      const nsX = b.max.x + 0.3;
+      box(0.5, 0.45, 0.5, 0xe6c9a0, nsX, 0.23, F - 0.25);
+      mushroomLamp(nsX, 0.46, F - 0.25, 0.4);
+      col.push([nsX - 0.25, nsX + 0.25, F - 0.5, F]);
+
+      // usagi sits on the mattress, near the head
+      const bedTop = b.max.y - 0.05;
+      const usagi = loadModel(scene, 'models/usagi.glb', {
+        x: (b.min.x + b.max.x) / 2, y: bedTop, z: F - 0.35,
+        height: 0.65, ry: Math.PI, brighten: 0.5,
+      });
+      usagi.rotation.order = 'YXZ';   // so the tilt happens in his own frame
+      usagi.rotation.x = -0.35;       // lean back
+    },
+  });
   on(bed, 'The bed — about me', actions.about);
-  col.push([L, L + BED_WID, F - BED_LEN, F]);
-
-  // nightstand + mushroom lamp (head of the bed, against the front wall)
-  const nsX = L + BED_WID + 0.3;
-  box(0.5, 0.45, 0.5, 0xe6c9a0, nsX, 0.23, F - 0.25);
-  mushroomLamp(nsX, 0.46, F - 0.25, 0.4);
-  col.push([nsX - 0.25, nsX + 0.25, F - 0.5, F]);
-
-  // we bare bears (in the gap between the table and the bed)
-  const gapZ = ((B + TABLE_LEN) + (F - BED_LEN)) / 2;
-  loadModel(scene, 'models/we_bare_bears.glb', { x: L + 0.35, y: 0.05, z: gapZ, height: 1.2, ry: Math.PI / 2, brighten: 0.3 });
-  col.push([L, L + 0.6, gapZ - 0.25, gapZ + 0.25]);
-
-  // usagi (sitting on the bed, near the head)
-  const usagi = loadModel(scene, 'models/usagi.glb', { x: bedX, y: BED_TOP, z: F - 0.35, height: 0.6, ry: Math.PI, brighten: 0.5 });
-  usagi.rotation.order = 'YXZ'; // so the tilt happens in his own frame
-  usagi.rotation.x = -0.35;     // lean back
 
   // ═════════ dresser (right wall, front) + globe + camera ═════════
   const dresserX = R - 0.35;
@@ -436,21 +637,6 @@ export function buildRoom(scene, on, actions) {
       polaroid(L + GAP, 1.45 + r * 0.38, bedZ - 0.76 + c * 0.38, Math.PI / 2, ((i * 37) % 10 - 5) * 0.012, TINTS[i % 4], i);
     }
   }
-
-  // ═════════ front wall: rope shelf with tiny figurines ═════════
-  const ropeX = 0.3, ropeZ = F - 0.07;
-  box(1.1, 0.05, 0.28, 0xa8683a, ropeX, 2.0, ropeZ);
-  [-0.5, 0.5].forEach(dx => cylinder(0.008, 0.6, 0xd9c3a0, ropeX + dx, 2.3, ropeZ)); // ropes
-  [[0xff8fb5, 0.0], [0xffd36b, 0.3], [0x8fd3c8, 0.55], [0xb9a7e8, 0.75]].forEach(([c, x]) => {
-    sphere(0.07, c, x, 2.1, ropeZ);
-    sphere(0.045, c, x, 2.21, ropeZ);
-  });
-
-  // ═════════ floor clutter (cute!) ═════════
-  // sneakers
-  box(0.3, 0.12, 0.18, 0xff6b5a, 1.1, 0.13, 0.5, 0.4);
-  cylinder(0.04, 0.03, 0x222222, 1.0, 0.08, 0.45);
-  cylinder(0.04, 0.03, 0x222222, 1.2, 0.08, 0.55);
 
   // bean bag chair (front, between the nightstand and the dresser)
   loadModel(scene, 'models/bean_bag.glb', { x: 0.35, y: 0.05, z: 1.75, height: 0.75, ry: Math.PI / 2, brighten: -0.5 });
