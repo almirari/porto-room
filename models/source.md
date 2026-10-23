@@ -4,8 +4,6 @@ bed https://sketchfab.com/3d-models/realistic-bed-cama-realista-b228247452ca4272
 
 usagi https://sketchfab.com/3d-models/usagi-chiikawa-4353fc3c1f664784bfd33608c6cff125
 
-we bare bears https://sketchfab.com/3d-models/we-bare-bears-c2f75dd26f83451994703086e0b19c42
-
 memory board https://sketchfab.com/3d-models/office-decor-memory-board-d78f6842d8e44dd9a9730bfa2e65de52
 
 chair https://sketchfab.com/3d-models/modern-chair-3d-model-7afad442bdd04ef0841f0100cd989be2
@@ -35,3 +33,7 @@ shark https://sketchfab.com/3d-models/3d-scaned-shark-plush-toy-867bb6cc590441a0
 monkey https://sketchfab.com/3d-models/viral-monkey-plush-toy-7c3ff836622b4fae91fdf1f8f7f13fed
 
 pc https://sketchfab.com/3d-models/stylized-hacked-pc-sketchfabweeklychallenge-192ab9d4706f4ffaaf22f9a299289d75
+
+globe https://sketchfab.com/3d-models/globe-59af1994b3224c0893729fec19eb4438
+
+window https://sketchfab.com/3d-models/window-7c34cb1c99544017a03119b566718399

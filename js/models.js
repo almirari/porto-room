@@ -6,25 +6,35 @@ let loader = null;
 
 // ───────────── list-style models (placed by loadModels) ─────────────
 // file: name inside /models · height: auto-scaled · x,z: centre · rotY: degrees · collide: block walking
+// (positions are for the 4.8 x 4.8 m room: walls are at x/z = ±2.35)
 export const MODELS = [
-  { file: 'plant.glb', height: 1.5, x: -3.45, z: -3.45, rotY: 0, collide: true },
-  { file: 'shelf.glb',  height: 1.8,  x:  2.2, z:  3.5, rotY: 180, collide: true  },
-  { file: 'lamp.glb', height: 0.5, x: 1.65, z: -3.35, y: 0.79, rotY: 0, collide: false },
-  { file: 'papers.glb', height: 0.05, x:  3.1, z: -3.7, y: 0.79, rotY: 0, collide: false },
+  { file: 'plant.glb',  height: 1.3,  x:  2.0,  z:  0.45, rotY: 0,   collide: true  }, // right wall, between whiteboard and dresser
+  { file: 'shelf.glb',  height: 1.8,  x:  1.25, z:  2.1,  rotY: 180, collide: true  }, // front wall, between bean bag and dresser
+  { file: 'lamp.glb',   height: 0.5,  x:  0.75, z: -2.15, y: 0.79, rotY: 0, collide: false }, // desk, left end
+  { file: 'papers.glb', height: 0.05, x:  2.05, z: -2.2,  y: 0.79, rotY: 0, collide: false }, // desk, right end
 ];
 
 // each file is downloaded once; extra copies are clones
+// (the cache keeps the whole gltf, not just the scene, so animations stay available)
 const cache = {};
 const fetchGLB = file => (cache[file] ??= new Promise((ok, fail) => {
   if (!T.GLTFLoader) return fail(new Error('THREE.GLTFLoader is not loaded (check the <script> tags in index.html)'));
   loader ??= new T.GLTFLoader();
-  loader.load('models/' + file, g => ok(g.scene), undefined, fail);
+  loader.load('models/' + file, g => ok(g), undefined, fail);
 }));
 
 const castShadows = obj => obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
 
-// ───────────── loadModel: used by room.js (chair, bed) ─────────────
+// ───────────── loadModel: used by room.js ─────────────
 // opts: x, y, z (y = floor top), ry (radians), and either height or length.
+//   brighten  how much the model glows on its own (negative = darker)
+//   pose      freeze the model's first animation at this time (seconds, or 'end').
+//             Fixes models that load in the wrong pose (e.g. a window with a sash swung open).
+//   prepare   function(obj) called before the model is measured; use it to move parts by name,
+//             e.g. prepare: o => o.getObjectByName('Sash').rotation.y = 0
+//   debug     print the model's animations and node names to the console
+//   onLoad    function({ obj, holder, size }) called when the model is in place;
+//             size is its final size in meters (in the model's own axes, before ry)
 // Returns a Group straight away (so room.js can make it clickable);
 // the model is added into it once the file has loaded.
 export function loadModel(scene, path, opts = {}) {
@@ -33,8 +43,24 @@ export function loadModel(scene, path, opts = {}) {
   holder.rotation.y = opts.ry || 0;
   scene.add(holder);
 
-  fetchGLB(path.replace(/^models\//, '')).then(src => {
-    const obj = src.clone(true);
+  fetchGLB(path.replace(/^models\//, '')).then(gltf => {
+    const obj = gltf.scene.clone(true);
+    const clips = gltf.animations || [];
+
+    if (opts.debug) {
+      console.log(`[${path}] animations:`, clips.map(c => `${c.name || '(unnamed)'} ${c.duration.toFixed(2)}s`));
+      obj.traverse(o => console.log(`[${path}] node:`, o.name || '(unnamed)', o.type));
+    }
+
+    // fix the pose before measuring, so the size and centre match what you'll see
+    if (opts.pose !== undefined && clips.length) {
+      const mixer = new T.AnimationMixer(obj);
+      mixer.clipAction(clips[0]).play();
+      mixer.setTime(opts.pose === 'end' ? clips[0].duration : opts.pose);
+    }
+    if (opts.prepare) opts.prepare(obj);
+    obj.updateMatrixWorld(true);
+
     const box = new T.Box3().setFromObject(obj);
     const size = box.getSize(new T.Vector3());
 
@@ -44,12 +70,13 @@ export function loadModel(scene, path, opts = {}) {
     obj.scale.setScalar(s);
 
     box.setFromObject(obj);
+    const finalSize = box.getSize(new T.Vector3());
     const c = box.getCenter(new T.Vector3());
     obj.position.set(-c.x, -box.min.y, -c.z);   // centred on holder, standing on its y
 
     castShadows(obj);
-    
-      if (opts.brighten) {
+
+    if (opts.brighten) {
       obj.traverse(o => {
         if (!o.isMesh) return;
         [].concat(o.material).forEach(m => {
@@ -63,15 +90,16 @@ export function loadModel(scene, path, opts = {}) {
     }
 
     holder.add(obj);
+    if (opts.onLoad) opts.onLoad({ obj, holder, size: finalSize });
   }).catch(err => console.warn('could not load', path, err));
 
   return holder;
 }
 
-// ───────────── loadModels: used by main.js (plant list above) ─────────────
+// ───────────── loadModels: used by main.js (list above) ─────────────
 async function place(scene, col, m) {
-  const src = await fetchGLB(m.file);
-  const obj = src.clone(true);
+  const gltf = await fetchGLB(m.file);
+  const obj = gltf.scene.clone(true);
 
   obj.rotation.y = T.MathUtils.degToRad(m.rotY || 0);
   const g = new T.Group(); g.add(obj);

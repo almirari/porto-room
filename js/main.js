@@ -41,7 +41,7 @@ scene.background = new T.Color(0xffd9b0);
 scene.fog = new T.Fog(0xffd9b0, 8, 20);
 
 const camera = new T.PerspectiveCamera(70, 1, 0.1, 50);
-camera.position.set(0, 1.6, 2.5);
+camera.position.set(0, 1.6, 1.0);  
 
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
@@ -73,7 +73,7 @@ const { col, motes } = buildRoom(scene, on, {
 loadModels(scene, col).catch(e => console.warn(e)).finally(() => modelsReady = true);
 
 // ───────────── collision ─────────────
-const ROOM_LIMIT = 2.9;
+const ROOM_LIMIT = 2.0; 
 const BODY = 0.3; // how close you can get to furniture
 
 const canStandAt = (x, z) =>

@@ -4,10 +4,14 @@ import { loadModel } from './models.js';
 
 const T = THREE;
 
-// ─────────── room size (change these to resize the shell) ───────────
-const HALF = 3.25;            // half of the room width/depth (6.5 x 6.5 m total)
-const CEIL = 2.9;             // ceiling height
-const INNER = HALF - 0.05;    // inner face of the walls (3.2)
+// ─────────── room size ───────────
+// 4.8 x 4.8 m (about 23 m²) is roughly a generous dorm room.
+// L / R / B / F are the inner faces of the left, right, back and front walls.
+const HALF  = 2.4;
+const CEIL  = 2.7;
+const INNER = HALF - 0.05;
+const L = -INNER, R = INNER, B = -INNER, F = INNER;
+const GAP = 0.02; // wall pictures sit this far in front of the wall
 
 export function buildRoom(scene, on, actions) {
   const col = []; // collision boxes: [minX, maxX, minZ, maxZ]
@@ -165,7 +169,7 @@ export function buildRoom(scene, on, actions) {
   box(0.1, CEIL, 2 * HALF, 0xcddcc4, -HALF, CEIL / 2, 0, 0, false); // left wall: sage (collage wall)
   box(0.1, CEIL, 2 * HALF, 0xcfe0ec,  HALF, CEIL / 2, 0, 0, false); // right wall: powder blue (posters pop)
 
-  const rug = mesh(new T.CircleGeometry(1.2, 32), 0x2b3f6b, 0.2, 0.06, 0.2, 0, false);
+  const rug = mesh(new T.CircleGeometry(1.0, 32), 0x2b3f6b, -0.2, 0.06, 0.2, 0, false);
   rug.rotation.x = -Math.PI / 2;
 
   // ═════════ windows with plants on the sill (back wall) ═════════
@@ -178,34 +182,73 @@ export function buildRoom(scene, on, actions) {
     g.fillRect(0, 0, w, h);
   };
 
-  [-1.95, -0.3].forEach(x => {
-    box(1.5, 1.4, 0.08, 0xfffaf0, x, 1.8, -3.18, 0, false);                        // frame
-    picture(1.3, 1.2, canvasTexture(drawSunnyGlass), x, 1.8, -3.13, 0, true);       // glowing glass
-    box(0.05, 1.2, 0.03, 0xfffaf0, x, 1.8, -3.11, 0, false);                        // vertical bar
-    box(1.3, 0.05, 0.03, 0xfffaf0, x, 1.8, -3.11, 0, false);                        // horizontal bar
-    box(1.7, 0.06, 0.28, 0xfffaf0, x, 1.07, -3.09, 0, false);                       // sill
-    plant(x - 0.4, 1.1, -3.09, 0.8);
-    plant(x + 0.35, 1.1, -3.09, 0.6);
-  });
+  const SILL_TOP = 1.05;   // window model sits right on top of the sill
+  const WINDOW_H = 1.3;    // window model height (width follows the model's proportions)
+
+  // models/window.glb: once it loads, onLoad measures the whole model, pushes it flush to the
+  // wall, and sizes the sky panel and the sill to it.
+  // The model turns itself to face the room (see onLoad), so WINDOW_RY normally stays 0.
+  const WINDOW_RY = 0;
+  const addWindow = (wx, cactusDx, cactusScale) => {
+    loadModel(scene, 'models/window.glb', {
+      x: wx, y: SILL_TOP, z: B + 0.1, height: WINDOW_H, ry: WINDOW_RY,
+      onLoad: ({ obj, holder }) => {
+        const frame = new T.Box3();                        // box around every part of the window
+        const measure = () => {
+          holder.updateMatrixWorld(true);
+          frame.makeEmpty();
+          obj.traverse(o => { if (o.isMesh) frame.expandByObject(o); });
+          return frame.getSize(new T.Vector3());
+        };
+        let size = measure();
+        if (frame.isEmpty()) return;
+        // a window is wide and thin. If it's thinner along z than x it's already facing the room;
+        // if not, it's turned edge-on, so spin it a quarter turn.
+        if (size.x < size.z) { holder.rotation.y += Math.PI / 2; size = measure(); }
+
+        const shift = B - frame.min.z;                     // back of the frame touches the wall
+        holder.position.z += shift;
+        frame.translate(new T.Vector3(0, 0, shift));
+        const cx = (frame.min.x + frame.max.x) / 2;
+        const w = frame.max.x - frame.min.x;
+        const h = frame.max.y - frame.min.y;
+
+        // glowing sky right behind the panes, sized to the frame
+        picture(w - 0.06, h - 0.06, canvasTexture(drawSunnyGlass), cx, (frame.min.y + frame.max.y) / 2, B + 0.01, 0, true);
+        // sill
+        box(w + 0.2, 0.06, 0.28, 0xfffaf0, cx, frame.min.y - 0.03, B + 0.14, 0, false);
+      },
+    });
+    plant(wx + cactusDx, SILL_TOP, B + 0.2, cactusScale);  // one cactus per sill
+  };
+
+  // two windows side by side, centered between the left wall and the desk
+  addWindow(-1.5, -0.22, 0.8);
+  addWindow(-0.3,  0.22, 0.6);
 
   // ═════════ desk nook (back right): desk, shelf, PC ═════════
+  const DESK_LEN = 1.8, DESK_D = 0.7;
+  const deskX = R - DESK_LEN / 2 - 0.03;   // 1.42
+  const deskZ = B + DESK_D / 2;            // -2.0
+
   // desk
-  box(2.4,  0.08, 0.9, 0xe8c28f, 1.65, 0.8, -2.75);
-  box(0.08, 0.8,  0.9, 0xe8c28f, 0.5,  0.4, -2.75);
-  box(0.08, 0.8,  0.9, 0xe8c28f, 2.8,  0.4, -2.75);
-  col.push([0.45, 2.85, -3.25, -2.25]);
+  box(DESK_LEN, 0.08, DESK_D, 0xe8c28f, deskX, 0.8, deskZ);
+  box(0.08, 0.8, DESK_D, 0xe8c28f, deskX - DESK_LEN / 2 + 0.04, 0.4, deskZ);
+  box(0.08, 0.8, DESK_D, 0xe8c28f, deskX + DESK_LEN / 2 - 0.04, 0.4, deskZ);
+  col.push([deskX - DESK_LEN / 2, deskX + DESK_LEN / 2, B, B + DESK_D]);
 
   // wall shelf above the desk
-  box(2.4,  0.08, 0.4, 0xe8c28f, 1.65, 1.9,  -3.0);
-  box(0.08, 0.7,  0.4, 0xe8c28f, 0.5,  1.55, -3.0);
-  books(0.75, 1.94, -3.0, 9);
-  sphere(0.16, 0xff8fb5, 2.55, 2.12, -3.0); // pink figurine (body)
-  sphere(0.1,  0xff8fb5, 2.55, 2.34, -3.0); // pink figurine (head)
-  box(0.3, 0.16, 0.03, 0xf4a6b8, 2.0, 2.04, -3.05); // pink game console
+  const shelfZ = B + 0.2;
+  box(DESK_LEN, 0.08, 0.4, 0xe8c28f, deskX, 1.75, shelfZ);
+  box(0.08, 0.7, 0.4, 0xe8c28f, deskX - DESK_LEN / 2 + 0.04, 1.4, shelfZ);
+  books(0.7, 1.79, shelfZ, 9);
+  sphere(0.16, 0xff8fb5, 2.1, 1.97, shelfZ); // pink figurine (body)
+  sphere(0.1,  0xff8fb5, 2.1, 2.19, shelfZ); // pink figurine (head)
+  box(0.3, 0.16, 0.03, 0xf4a6b8, 1.75, 1.89, shelfZ - 0.05); // pink game console
 
   // monitor + stand
-  box(0.75, 0.5,  0.05, 0x222222, 1.65, 1.1,  -2.85);
-  box(0.08, 0.25, 0.08, 0x222222, 1.65, 0.95, -2.85);
+  box(0.75, 0.5,  0.05, 0x222222, deskX, 1.1,  deskZ - 0.1);
+  box(0.08, 0.25, 0.08, 0x222222, deskX, 0.95, deskZ - 0.1);
 
   const drawPcScreen = (g, w, h) => {
     g.fillStyle = '#1d2b53';
@@ -219,63 +262,74 @@ export function buildRoom(scene, on, actions) {
     g.font = '18px monospace';
     g.fillText('flappy.exe', 80, 200);
   };
-  const screen = picture(0.7, 0.4, canvasTexture(drawPcScreen), 1.65, 1.1, -2.82, 0, true);
+  const screen = picture(0.7, 0.4, canvasTexture(drawPcScreen), deskX, 1.1, deskZ - 0.07, 0, true);
   on(screen, 'The PC — play a game', actions.game);
 
   // desk bits: keyboard, mug, headphones, mushroom lamp
-  box(0.25, 0.02, 0.1, 0xffffff, 1.25, 0.86, -2.45);
-  cylinder(0.06, 0.1, 0xffffff, 2.35, 0.9, -2.55);
-  const headphones = mesh(new T.TorusGeometry(0.08, 0.016, 8, 16), 0x2a2a2a, 2.15, 0.92, -2.25);
+  box(0.25, 0.02, 0.1, 0xffffff, deskX - 0.4, 0.86, deskZ + 0.22);
+  cylinder(0.06, 0.1, 0xffffff, deskX + 0.65, 0.9, deskZ + 0.05);
+  const headphones = mesh(new T.TorusGeometry(0.08, 0.016, 8, 16), 0x2a2a2a, deskX + 0.45, 0.92, deskZ + 0.15);
   headphones.rotation.x = Math.PI / 2;
   const deskLight = new T.PointLight(0xffd9a0, 0.45, 3);
-  deskLight.position.set(0.9, 1.3, -2.55);
+  deskLight.position.set(0.8, 1.25, deskZ);
   scene.add(deskLight);
 
   // ═════════ chair (3D model) ═════════
-  loadModel(scene, 'models/chair.glb', { x: 1.65, y: 0.05, z: -1.95, height: 1.5, ry: Math.PI / 2 });
+  loadModel(scene, 'models/chair.glb', { x: deskX, y: 0.05, z: B + DESK_D + 0.45, height: 1.4, ry: Math.PI / 2 });
 
   // ═════════ table + record player (left wall, back) ═════════
-  const TABLE_TOP = 0.84;
-  const table = loadModel(scene, 'models/wooden_table.glb', { x: -2.75, y: 0.05, z: -2.0, length: 2.4, ry: Math.PI / 2, brighten: 1 });
-  col.push([-3.25, -2.2, -3.25, -0.8]);
+  // table is scaled down from 2.4 to TABLE_LEN, so its top comes down with it
+  const TABLE_LEN = 1.7;
+  const TABLE_TOP = 0.05 + 0.79 * (TABLE_LEN / 2.4); // was 0.84 at length 2.4
+  const tableX = L + 0.38;
+  const tableZ = B + TABLE_LEN / 2;
+  const table = loadModel(scene, 'models/wooden_table.glb', { x: tableX, y: 0.05, z: tableZ, length: TABLE_LEN, ry: Math.PI / 2, brighten: 1 });
+  col.push([L, L + 0.75, B, B + TABLE_LEN]);
   on(table, 'The table — projects', actions.projects);
 
-  loadModel(scene, 'models/recordplayer.glb', { x: -2.75, y: TABLE_TOP, z: -1.5, length: 0.7, ry: Math.PI / 2, brighten: 0.5 });
-  loadModel(scene, 'models/vinyls.glb',       { x: -2.75, y: TABLE_TOP, z: -2.5, length: 1.3, ry: Math.PI / 2, brighten: 1 });
-  loadModel(scene, 'models/vinyls.glb',       { x: -2.85, y: 0.05,      z: -2.0, length: 1.3, ry: -Math.PI / 2, brighten: 0.7 });
+  loadModel(scene, 'models/recordplayer.glb', { x: tableX, y: TABLE_TOP, z: tableZ + 0.35, length: 0.55, ry: Math.PI / 2, brighten: 0.5 });
+  loadModel(scene, 'models/vinyls.glb',       { x: tableX, y: TABLE_TOP, z: tableZ - 0.35, length: 0.9,  ry: Math.PI / 2, brighten: 1 });
+  loadModel(scene, 'models/vinyls.glb',       { x: tableX - 0.05, y: 0.05, z: tableZ,      length: 0.9,  ry: -Math.PI / 2, brighten: 0.7 });
 
-  // ═════════ bed (3D model, left front) + nightstand + plushies ═════════
-  // the bed is scaled down from 3.1 to BED_LEN, so its top surface comes down with it
-  const BED_LEN = 2.4;
-  const BED_TOP = 0.05 + 0.77 * (BED_LEN / 3.1); // was 0.82 at length 3.1
-  const bed = loadModel(scene, 'models/bed.glb', { x: -2.45, y: 0.05, z: INNER - BED_LEN / 2, length: BED_LEN, ry: Math.PI / 2 });
+  // ═════════ bed (left wall, front) + nightstand + plushies ═════════
+  // the bed is scaled down from 3.1 to BED_LEN, so its width and top come down with it
+  const BED_LEN = 2.0;
+  const BED_WID = BED_LEN * 0.613;                 // old bed was 1.9 wide at length 3.1
+  const BED_TOP = 0.05 + 0.77 * (BED_LEN / 3.1);   // was 0.82 at length 3.1
+  const bedX = L + BED_WID / 2;
+  const bedZ = F - BED_LEN / 2;
+  const bed = loadModel(scene, 'models/bed.glb', { x: bedX, y: 0.05, z: bedZ, length: BED_LEN, ry: Math.PI / 2 });
   on(bed, 'The bed — about me', actions.about);
-  col.push([-3.2, -1.75, INNER - BED_LEN, INNER]);
+  col.push([L, L + BED_WID, F - BED_LEN, F]);
 
-  // nightstand + mushroom lamp (next to the head of the bed, against the front wall)
-  box(0.5, 0.45, 0.5, 0xe6c9a0, -1.45, 0.23, 2.95);
-  mushroomLamp(-1.45, 0.46, 2.95, 0.4);
-  col.push([-1.7, -1.2, 2.7, 3.2]);
+  // nightstand + mushroom lamp (head of the bed, against the front wall)
+  const nsX = L + BED_WID + 0.3;
+  box(0.5, 0.45, 0.5, 0xe6c9a0, nsX, 0.23, F - 0.25);
+  mushroomLamp(nsX, 0.46, F - 0.25, 0.4);
+  col.push([nsX - 0.25, nsX + 0.25, F - 0.5, F]);
 
-  // we bare bears (between the table and the bed)
-  loadModel(scene, 'models/we_bare_bears.glb', { x: -2.85, y: 0.05, z: 0.0, height: 1.5, ry: Math.PI / 2, brighten: 0.3 });
-  col.push([-3.15, -2.6, -0.3, 0.3]);
+  // we bare bears (in the gap between the table and the bed)
+  const gapZ = ((B + TABLE_LEN) + (F - BED_LEN)) / 2;
+  loadModel(scene, 'models/we_bare_bears.glb', { x: L + 0.35, y: 0.05, z: gapZ, height: 1.2, ry: Math.PI / 2, brighten: 0.3 });
+  col.push([L, L + 0.6, gapZ - 0.25, gapZ + 0.25]);
 
-  // usagi (sitting on the bed)
-  const usagi = loadModel(scene, 'models/usagi.glb', { x: -2.45, y: BED_TOP, z: 2.5, height: 0.7, ry: Math.PI, brighten: 0.5 });
+  // usagi (sitting on the bed, near the head)
+  const usagi = loadModel(scene, 'models/usagi.glb', { x: bedX, y: BED_TOP, z: F - 0.35, height: 0.6, ry: Math.PI, brighten: 0.5 });
   usagi.rotation.order = 'YXZ'; // so the tilt happens in his own frame
   usagi.rotation.x = -0.35;     // lean back
 
-  // ═════════ dresser (right) + globe + camera ═════════
-  box(0.9, 1.2, 2, 0x9db89a, 2.75, 0.6, 0.8); // sage dresser
-  col.push([2.3, 3.2, -0.2, 1.8]);
+  // ═════════ dresser (right wall, front) + globe + camera ═════════
+  const dresserX = R - 0.35;
+  const dresserZ = F - 0.77;      // 1.58 (spans 0.83 .. 2.33)
+  box(0.7, 1.1, 1.5, 0x9db89a, dresserX, 0.55, dresserZ); // sage dresser
+  col.push([dresserX - 0.35, R, dresserZ - 0.75, dresserZ + 0.75]);
 
-  [0.2, 0.55, 0.9].forEach(y => {
-    box(0.04, 0.28, 1.8, 0xb7cfb0, 2.29, y + 0.1, 0.8); // drawer front
-    sphere(0.04, 0x5a3a20, 2.25, y + 0.1, 0.8);         // knob
+  [0.2, 0.5, 0.8].forEach(y => {
+    box(0.04, 0.25, 1.35, 0xb7cfb0, dresserX - 0.36, y + 0.1, dresserZ); // drawer front
+    sphere(0.04, 0x5a3a20, dresserX - 0.4, y + 0.1, dresserZ);           // knob
   });
 
-  const globe = sphere(0.3, 0x5fb6d4, 2.75, 1.65, 1.1);
+  const globe = sphere(0.25, 0x5fb6d4, dresserX, 1.5, dresserZ + 0.37);
   const globeTex = canvasTexture((g, w, h) => {
     g.fillStyle = '#6fc3e0'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#9ad28a';
@@ -284,12 +338,12 @@ export function buildRoom(scene, on, actions) {
     });
   }, 256, 128);
   globe.material = new T.MeshLambertMaterial({ map: globeTex });
-  cylinder(0.02, 0.3, 0x555555, 2.75, 1.35, 1.1);       // globe stand
+  cylinder(0.02, 0.25, 0x555555, dresserX, 1.225, dresserZ + 0.37);   // globe stand
   on(globe, 'The globe — find me online', actions.contact);
 
-  box(0.25, 0.15, 0.15, 0x222222, 2.75, 1.28, 0.2);     // camera
+  box(0.25, 0.15, 0.15, 0x222222, dresserX, 1.18, dresserZ - 0.45);  // camera
 
-  // ═════════ right wall: posters + whiteboard + corkboard ═════════
+  // ═════════ right wall: whiteboard + posters + corkboard ═════════
   const poster = (text, bgColor, z, y) => {
     const draw = (g, w, h) => {
       g.fillStyle = bgColor;
@@ -302,10 +356,10 @@ export function buildRoom(scene, on, actions) {
       g.lineWidth = 8;
       g.strokeRect(8, 8, w - 16, h - 16);
     };
-    return picture(0.8, 1.1, canvasTexture(draw), 3.18, y, z, -Math.PI / 2);
+    return picture(0.7, 1.0, canvasTexture(draw), R - GAP, y, z, -Math.PI / 2);
   };
-  poster('STAY CURIOUS', '#e8606f', 0.3, 2.1);
-  poster('LOFI BEATS',   '#9b7fe0', 1.3, 2.1);
+  poster('STAY CURIOUS', '#e8606f', 0.5, 1.95);
+  poster('LOFI BEATS',   '#9b7fe0', 1.3, 1.95);
 
   const drawWhiteboard = (g, w, h) => {
     g.fillStyle = '#fffdf8';
@@ -328,8 +382,8 @@ export function buildRoom(scene, on, actions) {
     g.font = '14px sans-serif';
     g.fillText('click me!', 185, 50);
   };
-  box(0.05, 1.3, 1.9, 0xffffff, 3.2, 1.8, -1.5); // whiteboard frame
-  const whiteboard = picture(1.8, 1.2, canvasTexture(drawWhiteboard), 3.15, 1.8, -1.5, -Math.PI / 2);
+  box(0.05, 1.1, 1.6, 0xffffff, R, 1.7, -0.75); // whiteboard frame
+  const whiteboard = picture(1.5, 1.0, canvasTexture(drawWhiteboard), R - 0.05, 1.7, -0.75, -Math.PI / 2);
   on(whiteboard, 'The whiteboard — my paper', actions.paper);
 
   // corkboard with stickers
@@ -346,12 +400,11 @@ export function buildRoom(scene, on, actions) {
     });
     g.strokeStyle = '#fffaf0'; g.lineWidth = 10; g.strokeRect(5, 5, w - 10, h - 10);
   };
-  wallArt(0.9, 0.7, drawCork, 3.18, 1.75, 2.3, -Math.PI / 2, 0.01);
+  wallArt(0.65, 0.55, drawCork, R - GAP, 1.75, 2.0, -Math.PI / 2, 0.01);
 
-  // ivy hanging down the right wall (front corner)
-  vine(3.13, CEIL - 0.05, 3.05, 1.0);
-  vine(3.13, CEIL - 0.05, 2.9,  0.7);
-  vine(3.13, CEIL - 0.05, 2.75, 0.5);
+  // ivy hanging down the right wall (back corner, above the desk)
+  vine(R - 0.07, CEIL - 0.05, -1.85, 0.6);
+  vine(R - 0.07, CEIL - 0.05, -1.7,  0.45);
 
   // ═════════ left wall: gig posters + polaroid collage ═════════
   const gigPoster = (g, w, h) => {
@@ -372,50 +425,44 @@ export function buildRoom(scene, on, actions) {
     g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = 'bold 26px sans-serif';
     g.fillText('WE ARE', w / 2, h - 72); g.fillText('NOT ALONE', w / 2, h - 40);
   };
-  wallArt(0.8, 1.1, gigPoster, -3.18, 2.0, -2.5, Math.PI / 2,  0.02);
-  wallArt(0.8, 1.1, ufoPoster, -3.18, 2.0, -1.5, Math.PI / 2, -0.03);
+  wallArt(0.7, 1.0, gigPoster, L + GAP, 1.75, -1.95, Math.PI / 2,  0.02);
+  wallArt(0.7, 1.0, ufoPoster, L + GAP, 1.75, -1.1,  Math.PI / 2, -0.03);
 
   // polaroid grid over the bed (more saturated so they read as photos)
   const TINTS = [['#ff9eb5', '#ffc27a'], ['#8cc8f0', '#c6e88f'], ['#b79cf0', '#ff9ec9'], ['#7fd1a5', '#ffe27a']];
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 5; c++) {
       const i = r * 5 + c;
-      polaroid(-3.18, 1.6 + r * 0.4, 1.2 + c * 0.42, Math.PI / 2, ((i * 37) % 10 - 5) * 0.012, TINTS[i % 4], i);
+      polaroid(L + GAP, 1.45 + r * 0.38, bedZ - 0.76 + c * 0.38, Math.PI / 2, ((i * 37) % 10 - 5) * 0.012, TINTS[i % 4], i);
     }
   }
 
   // ═════════ front wall: rope shelf with tiny figurines ═════════
-  box(1.1, 0.05, 0.28, 0xa8683a, 0.8, 2.2, 3.07);
-  [-0.5, 0.5].forEach(dx => cylinder(0.008, 0.6, 0xd9c3a0, 0.8 + dx, 2.5, 3.07)); // ropes
-  [[0xff8fb5, 0.5], [0xffd36b, 0.8], [0x8fd3c8, 1.05], [0xb9a7e8, 1.25]].forEach(([c, x]) => {
-    sphere(0.07, c, x, 2.3, 3.07);
-    sphere(0.045, c, x, 2.41, 3.07);
+  const ropeX = 0.3, ropeZ = F - 0.07;
+  box(1.1, 0.05, 0.28, 0xa8683a, ropeX, 2.0, ropeZ);
+  [-0.5, 0.5].forEach(dx => cylinder(0.008, 0.6, 0xd9c3a0, ropeX + dx, 2.3, ropeZ)); // ropes
+  [[0xff8fb5, 0.0], [0xffd36b, 0.3], [0x8fd3c8, 0.55], [0xb9a7e8, 0.75]].forEach(([c, x]) => {
+    sphere(0.07, c, x, 2.1, ropeZ);
+    sphere(0.045, c, x, 2.21, ropeZ);
   });
 
   // ═════════ floor clutter (cute!) ═════════
   // sneakers
-  box(0.3, 0.12, 0.18, 0xff6b5a, 1.5, 0.13, 1.5, 0.4);
-  cylinder(0.04, 0.03, 0x222222, 1.4, 0.08, 1.45);
-  cylinder(0.04, 0.03, 0x222222, 1.6, 0.08, 1.55);
+  box(0.3, 0.12, 0.18, 0xff6b5a, 1.1, 0.13, 0.5, 0.4);
+  cylinder(0.04, 0.03, 0x222222, 1.0, 0.08, 0.45);
+  cylinder(0.04, 0.03, 0x222222, 1.2, 0.08, 0.55);
 
-  // stacked boxes (back wall, between the table and the desk)
-  box(0.5,  0.4,  0.5,  0xe6c9a0, -0.9, 0.25, -2.8);
-  box(0.45, 0.08, 0.35, 0xa8d5c2, -0.9, 0.5,  -2.8);
-  box(0.45, 0.5,  0.45, 0xa9c8ea, -0.3, 0.28, -2.9);
-  col.push([-1.15, -0.65, -3.05, -2.55]);
-  col.push([-0.525, -0.075, -3.125, -2.675]);
-
-  // bean bag chair
-  loadModel(scene, 'models/bean_bag.glb', { x: -0.5, y: 0.05, z: 2.5, height: 0.85, ry: Math.PI / 2, brighten: -0.5 });
+  // bean bag chair (front, between the nightstand and the dresser)
+  loadModel(scene, 'models/bean_bag.glb', { x: 0.35, y: 0.05, z: 1.75, height: 0.75, ry: Math.PI / 2, brighten: -0.5 });
 
   // books and mug
-  loadModel(scene, 'models/books.glb',     { x: 0.75, y: 0.1,  z: 2.8, length: 1.2,  ry: -0.4, brighten: 0.3 });
-  loadModel(scene, 'models/coffeemug.glb', { x: 0.5,  y: 0.06, z: 2.4, height: 0.2, ry: 0.8,  brighten: 0.3 });
+  loadModel(scene, 'models/books.glb',     { x: -0.45, y: 0.1,  z: 1.35, length: 0.9, ry: -0.4, brighten: 0.3 });
+  loadModel(scene, 'models/coffeemug.glb', { x: 0.15,  y: 0.06, z: 1.15, height: 0.2, ry: 0.8,  brighten: 0.3 });
 
   // ═════════ fairy lights (back wall, draped in a curve, with soft glow) ═════════
   const FAIRY_COLORS = [0xffd070, 0xff8fb5, 0xfff3b0];
-  for (let i = 0; i < 21; i++) {
-    const pos = new T.Vector3(-3.0 + i * 0.3, 2.72 - Math.sin(i / 3.5) * 0.12, -3.13);
+  for (let i = 0; i < 15; i++) {
+    const pos = new T.Vector3(-2.1 + i * 0.3, 2.52 - Math.sin(i / 2.2) * 0.1, B + 0.12);
 
     const bulb = new T.Mesh(
       new T.SphereGeometry(0.05),
@@ -439,17 +486,17 @@ export function buildRoom(scene, on, actions) {
   // soft golden-hour sun coming through the windows
   const sun = new T.DirectionalLight(0xffe6bf, 0.6);
   sun.position.set(-1, 3, -9);
-  sun.target.position.set(0, 0, 1.5);
+  sun.target.position.set(0, 0, 0.5);
   scene.add(sun, sun.target);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0004;      // fixes the staircase patterns on furniture
   sun.shadow.normalBias = 0.04;
-  Object.assign(sun.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, far: 25 });
+  Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, far: 25 });
 
   // gentle fill light from the ceiling
-  const warmFill = new T.PointLight(0xffe6cc, 0.12, 8);
-  warmFill.position.set(0, 2.6, 0.5);
+  const warmFill = new T.PointLight(0xffe6cc, 0.12, 6);
+  warmFill.position.set(0, 2.4, 0);
   scene.add(warmFill);
 
   // ═════════ dust motes floating in the sunbeams (soft round) ═════════
@@ -462,11 +509,11 @@ export function buildRoom(scene, on, actions) {
   }, 64, 64);
 
   const positions = [];
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 70; i++) {
     positions.push(
-      (Math.random() - 0.5) * 5.5,
-      0.3 + Math.random() * 2.3,
-      (Math.random() - 0.5) * 5.5
+      (Math.random() - 0.5) * 4.2,
+      0.3 + Math.random() * 2.1,
+      (Math.random() - 0.5) * 4.2
     );
   }
   const moteGeometry = new T.BufferGeometry();
