@@ -287,7 +287,7 @@ export function buildRoom(scene, on, actions) {
 
   // shoe rack on the left side of the door, front facing the alcove side wall (the arrow direction)
   const RACK_LEN  = 0.8;
-  const RACK_FACE = -Math.PI / 2;
+  const RACK_FACE = Math.PI;   // was -Math.PI / 2, which was tuned for the old model
   const SIDE_GAP  = 0;   // gap to the alcove side wall (the one the shelves face). 0 = touching
   const END_GAP   = 0;   // gap to the end wall (the one the door is on)
 
@@ -798,6 +798,23 @@ export function buildRoom(scene, on, actions) {
   whiteboard.material.alphaTest = 0.05;   // skip fully clear pixels, avoids dark fringes
   whiteboard.material.needsUpdate = true;
 
+  // ═════════ poster on the back wall, above the PC ═════════
+  const PCPOSTER_H = 2;
+  const PCPOSTER_X = 1.3;
+  const PCPOSTER_Y = 1.95;
+
+  const pcPosterTex = new T.TextureLoader().load('textures/pcposter.png', tex => {
+    // size the poster to the image's real proportions once it has loaded
+    pcPoster.scale.x = PCPOSTER_H * tex.image.width / tex.image.height;
+  });
+  if (T.SRGBColorSpace) pcPosterTex.colorSpace = T.SRGBColorSpace;
+  pcPosterTex.anisotropy = 8;
+
+  const pcPoster = picture(1, PCPOSTER_H, pcPosterTex, PCPOSTER_X, PCPOSTER_Y, B + GAP, 0);
+  pcPoster.material.transparent = true;
+  pcPoster.material.alphaTest = 0.05;   // skips fully clear pixels, avoids dark fringes
+  pcPoster.material.needsUpdate = true;
+
   // wall clock on the right wall, above the poster
   const CLOCK_Z = -1.25;
   const CLOCK_Y = 2.6;
@@ -817,6 +834,29 @@ export function buildRoom(scene, on, actions) {
       holder.updateMatrixWorld(true);
     },
   });
+
+  // ═════════ cap hung on the right wall, crown facing the room, brim pointing down ═════════
+  const HAT_H    = 0.3;      // cap length from back strap to brim tip, in meters
+  const HAT_Z    = -0.595;    // along the wall (same spot as before)
+  const HAT_Y    = 1.1;      // height of the cap's middle above the floor
+  const HAT_SPIN = 0.1;      // spin on the wall: 0 = straight, a little lean looks hand-hung
+                             // Math.PI = flips it if the brim points UP; +-Math.PI / 2 if it points sideways
+
+  loadModel(scene, 'models/hat.glb', {
+    x: R - 0.1, y: 0, z: HAT_Z, height: HAT_H, ry: -Math.PI / 2, brighten: 0.3,
+    prepare: o => o.rotation.set(Math.PI / 2, HAT_SPIN, 0),   // tip the cap back so the crown faces the room
+    onLoad: ({ holder }) => {
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      holder.position.y += HAT_Y - (b.min.y + b.max.y) / 2;
+      holder.position.z += HAT_Z - (b.min.z + b.max.z) / 2;
+      holder.position.x += (R - GAP) - b.max.x;               // back flush against the wall
+      holder.updateMatrixWorld(true);
+    },
+  });
+
+  // small nail the cap hangs from, at the top of the back strap
+  sphere(0.015, 0x888888, R - 0.03, HAT_Y + HAT_H / 2, HAT_Z);
 
   // ivy hanging down the right wall (back corner, above the desk)
   vine(R - 0.07, CEIL - 0.05, -1.85, 0.6);
@@ -861,26 +901,6 @@ export function buildRoom(scene, on, actions) {
   loadModel(scene, 'models/books.glb',     { x: -0.7,  y: 0.1,  z: -2.0,  length: 0.9,  ry: 0.3, brighten: 0.3 });
   loadModel(scene, 'models/coffeemug.glb', { x: -0.95, y: 0.06, z: -1.35, height: 0.2,  ry: 0.8, brighten: 0.3 });
   col.push([-2.1, -1.1, -2.2, -1.2]);
-
-  // ═════════ fairy lights (back wall, draped in a curve, with soft glow) ═════════
-  const FAIRY_COLORS = [0xffd070, 0xff8fb5, 0xfff3b0];
-  for (let i = 0; i < 15; i++) {
-    const pos = new T.Vector3(-2.1 + i * 0.3, 2.52 - Math.sin(i / 2.2) * 0.1, B + 0.12);
-
-    const bulb = new T.Mesh(
-      new T.SphereGeometry(0.05),
-      new T.MeshBasicMaterial({ color: FAIRY_COLORS[i % 3] })
-    );
-    bulb.position.copy(pos);
-    scene.add(bulb);
-
-    const halo = new T.Mesh(
-      new T.SphereGeometry(0.08),
-      new T.MeshBasicMaterial({ color: FAIRY_COLORS[i % 3], transparent: true, opacity: 0.18, depthWrite: false })
-    );
-    halo.position.copy(pos);
-    scene.add(halo);
-  }
 
   // ═════════ lighting (dialed down so the pastels don't blow out) ═════════
   scene.add(new T.AmbientLight(0xfff4e8, 0.4));

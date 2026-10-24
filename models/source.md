@@ -48,7 +48,7 @@ rb19 https://sketchfab.com/3d-models/oracle-red-bull-f1-car-rb19-2023-e4afe46f3a
 
 tennis racket https://sketchfab.com/3d-models/wilson-tennis-racket-89cfc984eada49a4a926216c1457fbbf
 
-shoe rack https://sketchfab.com/3d-models/shoe-rack-d2d0d50fe7724c47ba683d4b19da2800#download
+shoe rack https://sketchfab.com/3d-models/shoe-rack-with-shoes-crafted-by-jerovdl-ad7870072cae41a6a6359433caa88369
 
 laundry basket https://sketchfab.com/3d-models/laundry-basket-97d5aa2570a041b7887ab06d443a4974
 
