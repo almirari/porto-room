@@ -708,30 +708,28 @@ export function buildRoom(scene, on, actions) {
   vinylPoster.material.alphaTest = 0.05;   // fully clear pixels are skipped, avoids dark fringes at the edges
   vinylPoster.material.needsUpdate = true;
 
-  const drawWhiteboard = (g, w, h) => {
-    g.fillStyle = '#fffdf8';
-    g.fillRect(0, 0, w, h);
+  // poster on the right wall
+  const PAPER_POSTER_H = 1.5;     // height in meters
+  const PAPER_LEFT_Z   = -2.1;    // where the poster's left edge sits (matches the tall monitor). Raise to move right
+  const PAPER_BOTTOM_Y = 0.85;    // where the poster's bottom edge sits (just above the desk top). Lower = further down
 
-    g.fillStyle = '#ff6fa5';
-    g.font = 'bold 26px sans-serif';
-    g.fillText('MY PAPER ★', 20, 40);
+  const paperTex = new T.TextureLoader().load('textures/christinakoch.png', tex => {
+    // size the poster to the image's real proportions once it has loaded
+    const w = PAPER_POSTER_H * tex.image.width / tex.image.height;
+    whiteboard.scale.x = w;
+    whiteboard.position.z = PAPER_LEFT_Z + w / 2;   // keep the LEFT edge fixed as the width changes
+  });
+  if (T.SRGBColorSpace) paperTex.colorSpace = T.SRGBColorSpace;
+  paperTex.anisotropy = 8;
 
-    g.strokeStyle = '#4aa3df';
-    g.lineWidth = 4;
-    g.beginPath();
-    g.moveTo(30, 200);
-    g.bezierCurveTo(100, 60, 160, 230, 230, 80);
-    g.stroke();
-
-    g.fillStyle = '#ffe27a'; // sticky note
-    g.fillRect(180, 20, 50, 50);
-    g.fillStyle = '#333';
-    g.font = '14px sans-serif';
-    g.fillText('click me!', 185, 50);
-  };
-  box(0.05, 1.1, 1.6, 0xffffff, R, 1.7, -0.75); // whiteboard frame
-  const whiteboard = picture(1.5, 1.0, canvasTexture(drawWhiteboard), R - 0.05, 1.7, -0.75, -Math.PI / 2);
-  on(whiteboard, 'The whiteboard — my paper', actions.paper);
+  const whiteboard = picture(
+    1, PAPER_POSTER_H, paperTex,
+    R - GAP, PAPER_BOTTOM_Y + PAPER_POSTER_H / 2, PAPER_LEFT_Z + 0.6,
+    -Math.PI / 2
+  );
+  whiteboard.material.transparent = true;
+  whiteboard.material.alphaTest = 0.05;   // skip fully clear pixels, avoids dark fringes
+  whiteboard.material.needsUpdate = true;
 
   // ivy hanging down the right wall (back corner, above the desk)
   vine(R - 0.07, CEIL - 0.05, -1.85, 0.6);
