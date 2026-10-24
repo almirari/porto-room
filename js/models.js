@@ -8,7 +8,7 @@ let loader = null;
 // file: name inside /models · height: auto-scaled · x,z: centre · rotY: degrees · collide: block walking
 // (positions are for the 4.8 x 4.8 m room: walls are at x/z = ±2.35)
 export const MODELS = [
-  { file: 'plant.glb',  height: 1.3,  x:  2.0,  z:  0.45, rotY: 0,   collide: true  }, // right wall, between whiteboard and dresser
+  { file: 'plant.glb',  height: 1.3,  x: -0.05,  z: -1.9, rotY: 0,   collide: true  }, // floor, left of the PC desk
 ];
 
 // each file is downloaded once; extra copies are clones

@@ -285,6 +285,25 @@ export function buildRoom(scene, on, actions) {
     },
   });
 
+  // shoe rack on the left side of the door, front facing the alcove side wall (the arrow direction)
+  const RACK_LEN  = 0.8;
+  const RACK_FACE = -Math.PI / 2;
+  const SIDE_GAP  = 0;   // gap to the alcove side wall (the one the shelves face). 0 = touching
+  const END_GAP   = 0;   // gap to the end wall (the one the door is on)
+
+  loadModel(scene, 'models/shoerack.glb', {
+    x: x1 - 0.2, y: 0.05, z: endWallZ - 0.3, length: RACK_LEN, ry: RACK_FACE, brighten: 0.3,
+    onLoad: ({ holder }) => {
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      holder.position.x += (x1 - SIDE_GAP) - b.max.x;
+      holder.position.z += (endWallZ - END_GAP) - b.max.z;
+      holder.updateMatrixWorld(true);
+      b.setFromObject(holder);
+      col.push([b.min.x, b.max.x, b.min.z, b.max.z]);
+    },
+  });
+
   // alcove light so it isn't a dark box
   const nookLight = new T.PointLight(0xffe6cc, 0.35, 3);
   nookLight.position.set(DOOR_X, 2.1, nookZ);
@@ -592,6 +611,23 @@ export function buildRoom(scene, on, actions) {
           console.log(`[tuner] ${t.name}: fx: ${t.fx.toFixed(3)}, fy: ${t.fy.toFixed(3)}, fz: ${t.fz.toFixed(3)}, fw: ${t.fw.toFixed(3)}, fh: ${t.fh.toFixed(3)}, ry: ${t.ry.toFixed(2)}, rx: ${t.rx.toFixed(2)}`);
         });
       }
+      // 5) architect lamp clamped to the left edge of the desk
+      const LAMP_H     = 0.7;            // lamp height in meters
+      const LAMP_INSET = 0.3;            // how far in from the desk's left edge (was 0.08, which hung off the edge)
+      const LAMP_BACK  = 0.15;           // how far in front of the back wall
+      const LAMP_FACE  = Math.PI;        // if the arm points the wrong way, try 0, Math.PI / 2, -Math.PI / 2
+      const LAMP_DROP  = -0.57;           // sink the clamp into the desktop a bit (raise to lower the lamp)
+      const lampX = wb.min.x + LAMP_INSET, lampZ = B + LAMP_BACK;
+
+      // ray from above, landing on the desktop (the lamp isn't in the scene yet, so it can't hit itself)
+      const lampRay = new T.Raycaster(new T.Vector3(lampX, 3, lampZ), new T.Vector3(0, -1, 0));
+      const lampHits = lampRay.intersectObject(holder, true);
+      const lampY = (lampHits.length ? lampHits[0].point.y : 0.75) - LAMP_DROP;
+      console.log('[lamp] desk top y', lampY.toFixed(2), lampHits.length ? '(ray hit)' : '(no hit, fallback)');
+
+      loadModel(scene, 'models/architectlamp.glb', {
+        x: lampX, y: lampY, z: lampZ, height: LAMP_H, ry: LAMP_FACE, brighten: 0.3,
+      });
     },
   });
   on(pc, 'The PC — play a game', actions.game);
@@ -643,6 +679,28 @@ export function buildRoom(scene, on, actions) {
       mushroomLamp(nsX, 0.46, F - 0.25, 0.4);
       col.push([nsX - 0.25, nsX + 0.25, F - 0.5, F]);
 
+      // ═════════ RB19 hung on the front wall above the mushroom lamp, nose pointing up ═════════
+      const CAR_LEN    = 1.0;      // car length in meters (it stands upright, so this is its height on the wall)
+      const CAR_CENTER = 1.9;      // height of the car's middle above the floor
+      const MOUNT      = 'top';    // 'top' = you see the car from above, like it's driving up the wall
+                                   // 'side' = side profile, nose up
+      const NOSE_BACK  = false;    // set true if the nose ends up pointing down
+
+      loadModel(scene, 'models/rb19.glb', {
+        x: nsX, y: CAR_CENTER - CAR_LEN / 2, z: F - 0.1, height: CAR_LEN, ry: 0, brighten: 0.5,
+        prepare: o => {
+          if (MOUNT === 'top') o.rotation.set(-Math.PI / 2, NOSE_BACK ? Math.PI : 0, 0);
+          else o.rotation.set(NOSE_BACK ? Math.PI / 2 : -Math.PI / 2, Math.PI / 2, 0, 'YXZ');
+        },
+        onLoad: ({ holder }) => {
+          // push it flush against the front wall, facing the room
+          holder.updateMatrixWorld(true);
+          const cb = new T.Box3().setFromObject(holder);
+          holder.position.z += (F - GAP) - cb.max.z;
+          holder.updateMatrixWorld(true);
+        },
+      });
+
       // usagi sits on the bed surface: drop a ray from above and land where it hits
       const usagiX = (b.min.x + b.max.x) / 2;
       const usagiZ = F - 0.55;           // a bit away from the headboard so the ray hits the mattress
@@ -667,6 +725,15 @@ export function buildRoom(scene, on, actions) {
   const DRESSER_TOP = 1.1;
   box(0.7, 1.1, 1.5, 0xe6c9a0, dresserX, 0.55, dresserZ); // sage dresser
   col.push([dresserX - 0.35, R, dresserZ - 0.75, dresserZ + 0.75]);
+
+  const BASKET_H = 0.8;                    // height in meters
+  const BASKET_X = R - 0.3;                 // against the right wall
+  const BASKET_Z = dresserZ - 0.75 - 0.35;  // just past the dresser's left edge (0.83)
+
+  loadModel(scene, 'models/laundrybasket.glb', {
+    x: BASKET_X, y: 0.05, z: BASKET_Z, height: BASKET_H, ry: 0, brighten: 0.3,
+  });
+  col.push([BASKET_X - 0.25, BASKET_X + 0.25, BASKET_Z - 0.25, BASKET_Z + 0.25]);
 
   [0.2, 0.5, 0.8].forEach(y => {
     box(0.04, 0.25, 1.35, 0xe6c9a0, dresserX - 0.36, y + 0.1, dresserZ); // drawer front
@@ -730,6 +797,26 @@ export function buildRoom(scene, on, actions) {
   whiteboard.material.transparent = true;
   whiteboard.material.alphaTest = 0.05;   // skip fully clear pixels, avoids dark fringes
   whiteboard.material.needsUpdate = true;
+
+  // wall clock on the right wall, above the poster
+  const CLOCK_Z = -1.25;
+  const CLOCK_Y = 2.6;
+  const CLOCK_D = 0.4;
+  const CLOCK_RY = -Math.PI / 2;
+
+  loadModel(scene, 'models/clock.glb', {
+    x: R - 0.05, y: CLOCK_Y, z: CLOCK_Z, height: CLOCK_D, ry: CLOCK_RY, brighten: 0.3,
+    pose: 1,
+    debug: true,
+    onLoad: ({ holder }) => {
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      holder.position.z += CLOCK_Z - (b.min.z + b.max.z) / 2;
+      holder.position.y += CLOCK_Y - (b.min.y + b.max.y) / 2;
+      holder.position.x += (R - GAP) - b.max.x;
+      holder.updateMatrixWorld(true);
+    },
+  });
 
   // ivy hanging down the right wall (back corner, above the desk)
   vine(R - 0.07, CEIL - 0.05, -1.85, 0.6);

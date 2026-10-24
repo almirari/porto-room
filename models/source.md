@@ -51,3 +51,5 @@ tennis racket https://sketchfab.com/3d-models/wilson-tennis-racket-89cfc984eada4
 shoe rack https://sketchfab.com/3d-models/shoe-rack-d2d0d50fe7724c47ba683d4b19da2800#download
 
 laundry basket https://sketchfab.com/3d-models/laundry-basket-97d5aa2570a041b7887ab06d443a4974
+
+cat https://sketchfab.com/3d-models/sleepy-comfy-cat-2c2baa9563db4f20ba23f869ec3288dc
