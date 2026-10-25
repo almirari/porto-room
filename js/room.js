@@ -161,6 +161,88 @@ export function buildRoom(scene, on, actions) {
     return star;
   };
 
+  // beige bookshelf frame, books keep their original colours
+  const SHELF_COLOR = 0xe6c9a0;   // same as the nightstand
+  const FRAME_MIN   = 0.5;        // a piece at least this big (vs the whole shelf) counts as frame, smaller = book
+                                  // books turn beige too: raise it (try 0.7). shelf boards stay wood: lower it (try 0.3)
+
+  const beigeShelf = (obj, holder) => {
+    const frameMat = new T.MeshLambertMaterial({ color: SHELF_COLOR });
+    const meshes = [];
+    obj.traverse(o => { if (o.isMesh) meshes.push(o); });
+    console.log('[bookshelf] meshes:', meshes.map(m => m.name || '(unnamed)'));
+
+    // case 1: the model is several meshes, so recolor the big ones (shelf), skip the small ones (books)
+    if (meshes.length > 1) {
+      meshes.forEach(m => {
+        if (!/book/i.test(m.name)) m.material = frameMat;
+      });
+      return;
+    }
+
+    // case 2: one baked mesh, so split it into connected pieces and recolor only the big ones
+    const target = meshes[0];
+    if (!target || Array.isArray(target.material)) return;
+    target.geometry = target.geometry.clone();
+    const g = target.geometry;
+    const pos = g.attributes.position;
+    const idx = g.index ? g.index.array : null;
+    const triCount = (idx ? idx.length : pos.count) / 3;
+    const vi = (t, k) => (idx ? idx[t * 3 + k] : t * 3 + k);
+
+    // weld shared vertices, then group triangles into connected pieces
+    const ids = new Map();
+    const weld = new Int32Array(pos.count);
+    for (let i = 0; i < pos.count; i++) {
+      const key = Math.round(pos.getX(i) * 1e4) + ',' + Math.round(pos.getY(i) * 1e4) + ',' + Math.round(pos.getZ(i) * 1e4);
+      let id = ids.get(key);
+      if (id === undefined) { id = ids.size; ids.set(key, id); }
+      weld[i] = id;
+    }
+    const parent = new Int32Array(ids.size).map((_, i) => i);
+    const find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+    const union = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
+    for (let t = 0; t < triCount; t++) {
+      union(weld[vi(t, 0)], weld[vi(t, 1)]);
+      union(weld[vi(t, 0)], weld[vi(t, 2)]);
+    }
+
+    // bounding box of each piece
+    const boxes = new Map();
+    const triRoot = new Int32Array(triCount);
+    const v = new T.Vector3();
+    for (let t = 0; t < triCount; t++) {
+      const root = find(weld[vi(t, 0)]);
+      triRoot[t] = root;
+      let bb = boxes.get(root);
+      if (!bb) { bb = new T.Box3(); boxes.set(root, bb); }
+      for (let k = 0; k < 3; k++) bb.expandByPoint(v.fromBufferAttribute(pos, vi(t, k)));
+    }
+    g.computeBoundingBox();
+    const total = g.boundingBox.getSize(new T.Vector3());
+    const big = Math.max(total.x, total.y, total.z);
+    const frameRoots = new Set();
+    boxes.forEach((bb, root) => {
+      const s = bb.getSize(new T.Vector3());
+      if (Math.max(s.x, s.y, s.z) >= FRAME_MIN * big) frameRoots.add(root);
+    });
+    console.log('[bookshelf] pieces:', boxes.size, '| frame pieces:', frameRoots.size);
+    if (!frameRoots.size) return;
+
+    const frameIdx = [], bookIdx = [];
+    for (let t = 0; t < triCount; t++) {
+      (frameRoots.has(triRoot[t]) ? frameIdx : bookIdx).push(vi(t, 0), vi(t, 1), vi(t, 2));
+    }
+    g.setIndex(bookIdx);                       // original mesh keeps only the books (original material)
+
+    const fg = new T.BufferGeometry();
+    for (const k in g.attributes) fg.setAttribute(k, g.attributes[k]);
+    fg.setIndex(frameIdx);
+    const frame = new T.Mesh(fg, frameMat);    // frame gets the flat beige
+    frame.castShadow = true; frame.receiveShadow = true;
+    target.add(frame);
+  };
+
   // ═════════ shell: floor, ceiling, walls, rug ═════════
 
   // floor: tiled wood texture
@@ -679,6 +761,32 @@ export function buildRoom(scene, on, actions) {
       mushroomLamp(nsX, 0.46, F - 0.25, 0.4);
       col.push([nsX - 0.25, nsX + 0.25, F - 0.5, F]);
 
+      // ═════════ bookshelves: side by side against the left wall, starting at the foot of the bed ═════════
+      const SHELF_COUNT   = 2;
+      const SHELF_H       = 1.3;      // bookshelf height in meters
+      const SHELF_FACE    = Math.PI / 2;  // faces into the room (+x). If the back faces you, try -Math.PI / 2
+      const SHELF_GAP     = 0.02;     // gap between the bed's foot and the first shelf
+      const SHELF_SPACING = 0.0;      // gap between the shelves (0 = touching)
+      const bedFootZ      = b.min.z;  // the bed's foot end, measured above
+
+      for (let i = 0; i < SHELF_COUNT; i++) {
+        loadModel(scene, 'models/bookshelf.glb', {
+          x: L + 0.2, y: 0.05, z: bedFootZ - 0.4 - i, height: SHELF_H, ry: SHELF_FACE, brighten: 0.3,
+          onLoad: ({ obj, holder }) => {
+            beigeShelf(obj, holder);
+            holder.updateMatrixWorld(true);
+            const sb = new T.Box3().setFromObject(holder);
+            const width = sb.max.z - sb.min.z;                        // this shelf's width along the wall
+            holder.position.x += L - sb.min.x;                        // back flush against the left wall
+            // shelf 0 touches the bed, shelf 1 sits one shelf-width further along, and so on
+            holder.position.z += (bedFootZ - SHELF_GAP - i * (width + SHELF_SPACING)) - sb.max.z;
+            holder.updateMatrixWorld(true);
+            sb.setFromObject(holder);
+            col.push([sb.min.x, sb.max.x, sb.min.z, sb.max.z]);       // so you can't walk through it
+          },
+        });
+      }
+
       // ═════════ RB19 hung on the front wall above the mushroom lamp, nose pointing up ═════════
       const CAR_LEN    = 1.0;      // car length in meters (it stands upright, so this is its height on the wall)
       const CAR_CENTER = 1.9;      // height of the car's middle above the floor
@@ -824,7 +932,7 @@ export function buildRoom(scene, on, actions) {
   loadModel(scene, 'models/clock.glb', {
     x: R - 0.05, y: CLOCK_Y, z: CLOCK_Z, height: CLOCK_D, ry: CLOCK_RY, brighten: 0.3,
     pose: 1,
-    debug: true,
+    debug: false,
     onLoad: ({ holder }) => {
       holder.updateMatrixWorld(true);
       const b = new T.Box3().setFromObject(holder);
@@ -894,13 +1002,33 @@ export function buildRoom(scene, on, actions) {
   }
 
   // reading corner (back-left, under the windows): bean bag turned toward the spawn point, books, mug
-  const BEAN_X = -1.6, BEAN_Z = -1.7;
+  const BEAN_X = -1.3, BEAN_Z = -1.7;
   const BEAN_TURN = -Math.PI / 2;   // if it faces the wrong way, try Math.PI / 2 or Math.PI
   const beanFacing = Math.atan2(0.5 - BEAN_X, 2.8 - BEAN_Z) + BEAN_TURN;
   loadModel(scene, 'models/bean_bag.glb',  { x: BEAN_X, y: 0.05, z: BEAN_Z, height: 0.75, ry: beanFacing, brighten: -0.5 });
   loadModel(scene, 'models/books.glb',     { x: -0.7,  y: 0.1,  z: -2.0,  length: 0.9,  ry: 0.3, brighten: 0.3 });
-  loadModel(scene, 'models/coffeemug.glb', { x: -0.95, y: 0.06, z: -1.35, height: 0.2,  ry: 0.8, brighten: 0.3 });
+  loadModel(scene, 'models/coffeemug.glb', { x: -1.7, y: 0.06, z: -1, height: 0.2,  ry: 0.8, brighten: 0.3 });
   col.push([-2.1, -1.1, -2.2, -1.2]);
+
+  // ═════════ fairy lights (back wall, draped in a curve, with soft glow) ═════════
+  const FAIRY_COLORS = [0xffd070, 0xff8fb5, 0xfff3b0];
+  for (let i = 0; i < 15; i++) {
+    const pos = new T.Vector3(-2.1 + i * 0.3, 2.52 - Math.sin(i / 2.2) * 0.1, B + 0.12);
+
+    const bulb = new T.Mesh(
+      new T.SphereGeometry(0.05),
+      new T.MeshBasicMaterial({ color: FAIRY_COLORS[i % 3] })
+    );
+    bulb.position.copy(pos);
+    scene.add(bulb);
+
+    const halo = new T.Mesh(
+      new T.SphereGeometry(0.08),
+      new T.MeshBasicMaterial({ color: FAIRY_COLORS[i % 3], transparent: true, opacity: 0.18, depthWrite: false })
+    );
+    halo.position.copy(pos);
+    scene.add(halo);
+  }
 
   // ═════════ lighting (dialed down so the pastels don't blow out) ═════════
   scene.add(new T.AmbientLight(0xfff4e8, 0.4));

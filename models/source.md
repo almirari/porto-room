@@ -34,7 +34,7 @@ window https://sketchfab.com/3d-models/window-7c34cb1c99544017a03119b566718399
 
 door https://sketchfab.com/3d-models/door-with-doorframe-c29da62ca4e34dbb9801f98a4b5d3382
 
-bookshelf https://sketchfab.com/3d-models/bookshelf-cc0-71af93b1d15f4f48ad836d36110626f7
+bookshelf https://sketchfab.com/3d-models/bookshelf-e271b784fb9449b78771e21518368ba0
 
 building https://sketchfab.com/3d-models/building-02-e22ece3fd35c4bd4a3d90321c1b2a806
 
