@@ -52,4 +52,4 @@ shoe rack https://sketchfab.com/3d-models/shoe-rack-with-shoes-crafted-by-jerovd
 
 laundry basket https://sketchfab.com/3d-models/laundry-basket-97d5aa2570a041b7887ab06d443a4974
 
-cat https://sketchfab.com/3d-models/sleepy-comfy-cat-2c2baa9563db4f20ba23f869ec3288dc
+fire escape https://sketchfab.com/3d-models/fire-escape-8e33b01773e24cc79715dc7bb35b2405

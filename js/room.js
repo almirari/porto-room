@@ -491,6 +491,46 @@ export function buildRoom(scene, on, actions) {
     },
   });
 
+    // ═════════ fire escape outside the windows (models/fireescape.glb) ═════════
+  const FIRE_H      = 5.5;    // total model height in meters (platform railing is about 1 m of that)
+  const FIRE_BOTTOM = -2.3;   // world height of the model's lowest point. The platform floor sits ~1 m above it, so
+                              // -0.2 puts the floor at ~0.8, just under the sill, and the railing shows through the windows
+  const FIRE_X      = -0.9;   // sideways center (-0.9 = centered on your two windows)
+  const FIRE_GAP    = 0;    // distance from the outside of your back wall to the nearest part of the fire escape
+  const FIRE_RY     = 0;      // which way it faces: try 0, Math.PI, Math.PI / 2, -Math.PI / 2
+  const FIRE_SHADOW = false;  // true = railings cast shadows into the room through the windows
+
+  loadModel(scene, 'models/fireescape.glb', {
+    x: FIRE_X, y: FIRE_BOTTOM, z: B - 0.1 - FIRE_GAP, height: FIRE_H, ry: FIRE_RY,
+    onLoad: ({ obj, holder }) => {
+      // unlit materials, same as the building, so it stays bright and matches the outdoor look
+      obj.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = FIRE_SHADOW;
+        o.receiveShadow = false;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        const basic = mats.map(m => new T.MeshBasicMaterial({
+          map: m.map || null,
+          alphaMap: m.alphaMap || null,      // keeps the see-through grating on the steps
+          alphaTest: m.alphaTest || 0,
+          color: m.map ? 0xffffff : (m.color || 0xffffff),
+          side: T.DoubleSide,
+          transparent: m.transparent,
+          opacity: m.opacity,
+        }));
+        o.material = Array.isArray(o.material) ? basic : basic[0];
+      });
+
+      // place it: centered on FIRE_X, lowest point at FIRE_BOTTOM, nearest face FIRE_GAP outside the wall
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      holder.position.x += FIRE_X - (b.min.x + b.max.x) / 2;
+      holder.position.y += FIRE_BOTTOM - b.min.y;
+      holder.position.z += (B - 0.1 - FIRE_GAP) - b.max.z;
+      holder.updateMatrixWorld(true);
+    },
+  });
+
   // ═════════ desk nook (back right): hacked-PC desk model ═════════
   const DESK_LEN = 2.1;
   const deskX = R - DESK_LEN / 2 - 0.03;
@@ -707,8 +747,51 @@ export function buildRoom(scene, on, actions) {
       const lampY = (lampHits.length ? lampHits[0].point.y : 0.75) - LAMP_DROP;
       console.log('[lamp] desk top y', lampY.toFixed(2), lampHits.length ? '(ray hit)' : '(no hit, fallback)');
 
+      const LAMP_WALL_GAP = 0.05;   // clearance between the lamp's furthest-back part and the wall
+
       loadModel(scene, 'models/architectlamp.glb', {
         x: lampX, y: lampY, z: lampZ, height: LAMP_H, ry: LAMP_FACE, brighten: 0.3,
+        onLoad: ({ holder }) => {
+          holder.updateMatrixWorld(true);
+          const lb = new T.Box3().setFromObject(holder);
+          // pull the whole lamp forward until its backmost point clears the wall
+          if (lb.min.z < B + LAMP_WALL_GAP) {
+            // recolor red -> yellow
+          const LAMP_HUE = 50;   // degrees to rotate (0 = stays red, 50 = yellow, 25 = orange)
+          const toYellow = m => {
+            m = m.clone();
+            if (m.map && m.map.image) {
+              const c = document.createElement('canvas');
+              c.width = m.map.image.width; c.height = m.map.image.height;
+              const g = c.getContext('2d');
+              g.filter = `hue-rotate(${LAMP_HUE}deg)`;
+              g.drawImage(m.map.image, 0, 0);
+              const tex = new T.CanvasTexture(c);
+              tex.flipY = m.map.flipY;
+              tex.wrapS = m.map.wrapS; tex.wrapT = m.map.wrapT;
+              if (m.map.colorSpace !== undefined) tex.colorSpace = m.map.colorSpace;
+              tex.needsUpdate = true;
+              m.map = tex;
+            } else if (m.color) {
+              const hsl = {};
+              m.color.getHSL(hsl);
+              m.color.setHSL(LAMP_HUE / 360, Math.max(hsl.s, 0.8), hsl.l);   // keep the shading, swap the hue
+            }
+            if (m.emissive) {
+              const e = {};
+              m.emissive.getHSL(e);
+              if (e.s > 0) m.emissive.setHSL(LAMP_HUE / 360, e.s, e.l);
+            }
+            return m;
+          };
+          holder.traverse(o => {
+            if (!o.isMesh) return;
+            o.material = Array.isArray(o.material) ? o.material.map(toYellow) : toYellow(o.material);
+          });
+            holder.position.z += (B + LAMP_WALL_GAP) - lb.min.z;
+            holder.updateMatrixWorld(true);
+          }
+        },
       });
     },
   });
@@ -721,7 +804,7 @@ export function buildRoom(scene, on, actions) {
   scene.add(deskLight);
 
   // ═════════ bed: measured after it loads, so any bed model works ═════════
-  const BED_LEN  = 2.2;     // length of the bed (longest side), in meters
+  const BED_LEN  = 2.5;     // length of the bed (longest side), in meters
   const BED_FLIP = false;   // true = turn the bed around if the head is at the wrong end
   const bedZ = F - BED_LEN / 2;   // used by the polaroid wall
 
@@ -763,7 +846,7 @@ export function buildRoom(scene, on, actions) {
 
       // ═════════ bookshelves: side by side against the left wall, starting at the foot of the bed ═════════
       const SHELF_COUNT   = 2;
-      const SHELF_H       = 1.3;      // bookshelf height in meters
+      const SHELF_H       = 1;      // bookshelf height in meters
       const SHELF_FACE    = Math.PI / 2;  // faces into the room (+x). If the back faces you, try -Math.PI / 2
       const SHELF_GAP     = 0.02;     // gap between the bed's foot and the first shelf
       const SHELF_SPACING = 0.0;      // gap between the shelves (0 = touching)
@@ -783,6 +866,15 @@ export function buildRoom(scene, on, actions) {
             holder.updateMatrixWorld(true);
             sb.setFromObject(holder);
             col.push([sb.min.x, sb.max.x, sb.min.z, sb.max.z]);       // so you can't walk through it
+            if (i === SHELF_COUNT - 1) {
+              const LAMP_EDGE = 0.2;
+              mushroomLamp(
+                (sb.min.x + sb.max.x) / 2,
+                sb.max.y,
+                sb.max.z - LAMP_EDGE,
+                0.4
+              );
+            }
           },
         });
       }
@@ -1009,6 +1101,22 @@ export function buildRoom(scene, on, actions) {
   loadModel(scene, 'models/books.glb',     { x: -0.7,  y: 0.1,  z: -2.0,  length: 0.9,  ry: 0.3, brighten: 0.3 });
   loadModel(scene, 'models/coffeemug.glb', { x: -1.7, y: 0.06, z: -1, height: 0.2,  ry: 0.8, brighten: 0.3 });
   col.push([-2.1, -1.1, -2.2, -1.2]);
+
+  // floor plant in the back-left corner, to the right of the bookshelves
+  const PLANT_H   = 1.2;    // plant height in meters (pot included)
+  const PLANT_RY  = 0.6;    // turn it to show its best side
+  const PLANT_PAD = 0.05;   // gap between the plant and each wall
+
+  loadModel(scene, 'models/plant.glb', {
+    x: L + 0.35, y: 0.05, z: B + 0.35, height: PLANT_H, ry: PLANT_RY, brighten: 0.3,
+    onLoad: ({ holder }) => {
+      holder.updateMatrixWorld(true);
+      const pb = new T.Box3().setFromObject(holder);
+      holder.position.x += (L + PLANT_PAD) - pb.min.x;   // tucked against the left wall
+      holder.position.z += (B + PLANT_PAD) - pb.min.z;   // tucked against the back wall
+      holder.updateMatrixWorld(true);
+    },
+  });
 
   // ═════════ fairy lights (back wall, draped in a curve, with soft glow) ═════════
   const FAIRY_COLORS = [0xffd070, 0xff8fb5, 0xfff3b0];
