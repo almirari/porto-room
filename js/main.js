@@ -3,33 +3,17 @@ import { show, isOpen } from './ui.js';
 import { flappy } from './flappy.js';
 import * as C from './content.js';
 import { loadModels } from './models.js';
+import { initIntro } from './intro.js';
 
 const T = THREE;
 const $ = id => document.getElementById(id);
 const canvas = $('c');
 const tag = $('tag');
 
-// ───────────── loading screen ─────────────
-let modelsReady = false;
+// ───────────── loading screen (scroll intro lives in intro.js) ─────────────
 let loaded = false;
-
-// 2. progress bar (when it hits 100%, "click anywhere to resume" appears)
-let progress = 0;
-const progressTimer = setInterval(() => {
-  progress = Math.min(modelsReady ? 100 : 92, progress + 1.6);   // wait at 92% until the models are in
-  $('fill').style.width = progress + '%';
-  if (progress >= 100) {
-    clearInterval(progressTimer);
-    $('enter').style.display = 'block';
-  }
-}, 50);
-
-// 3. click anywhere (#enter covers the whole screen) → fade out and start
-$('enter').onclick = () => {
-  $('load').style.opacity = 0;
-  setTimeout(() => $('load').style.display = 'none', 800);
-  loaded = true;
-};
+let needsFrame = true;   // draw the 3D scene once (compiles shaders), then pause until the intro is done
+const intro = initIntro({ onEnter: () => { loaded = true; } });
 
 // ───────────── renderer, scene, camera ─────────────
 const renderer = new T.WebGLRenderer({ canvas, antialias: true });
@@ -70,7 +54,8 @@ const { col, motes } = buildRoom(scene, on, {
 });
 
 // ───────────── .glb models (plant, …) ─────────────
-loadModels(scene, col).catch(e => console.warn(e)).finally(() => modelsReady = true);
+loadModels(scene, col).catch(e => console.warn(e)).finally(() => { needsFrame = true; intro.setReady(); });
+setTimeout(() => intro.setReady(), 8000);   // safety net
 
 // ───────────── collision ─────────────
 const ROOM_LIMIT = 2.0; 
@@ -231,6 +216,6 @@ function loop(t) {
   updatePlayer(dt);
   motes.rotation.y += dt * 0.02;
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
-  renderer.render(scene, camera);
+  if (loaded || needsFrame) { renderer.render(scene, camera); needsFrame = false; }
 }
 loop(0);

@@ -1,10 +1,67 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sasya’s Room</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="loading.css"><link rel="preload" as="image" href="loading-door.webp"><link rel="preload" as="image" href="loading-sign.webp"></head><body>
+<title>Sasya’s Sandbox</title>
+<link rel="preload" as="image" href="title.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,800;0,9..144,900;1,9..144,500&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"><link rel="stylesheet" href="loading.css">
+<link rel="preload" as="image" href="main.png"></head><body>
 <canvas id="c"></canvas><div id="tag"></div>
 <div id="hud">WASD / arrows to walk · drag to look · click things to explore</div>
-<div id="load"><div class="stage" aria-hidden="true"><img class="plate" src="loading-door.webp" alt=""><div class="swing"><div class="swing2"><img class="sign" src="loading-sign.webp" alt=""></div></div><div class="star" style="--l:33.785%;--t:10.741%;--w:4.236%;--r:122 / 119;--ox:44.96%;--oy:5.88%;--dur:7.4s;--del:-1s"><img src="loading-star0.webp" alt=""></div><div class="star" style="--l:40.938%;--t:14.506%;--w:2.778%;--r:80 / 78;--ox:45.19%;--oy:8.97%;--dur:6.2s;--del:-3s"><img src="loading-star1.webp" alt=""></div><div class="star" style="--l:48.368%;--t:15.370%;--w:4.236%;--r:122 / 119;--ox:44.96%;--oy:5.88%;--dur:8.0s;--del:-2s"><img src="loading-star2.webp" alt=""></div><div class="star" style="--l:55.729%;--t:14.074%;--w:2.778%;--r:80 / 78;--ox:44.97%;--oy:8.97%;--dur:6.6s;--del:-4.5s"><img src="loading-star3.webp" alt=""></div><div class="star" style="--l:61.910%;--t:10.617%;--w:4.236%;--r:122 / 119;--ox:44.92%;--oy:5.88%;--dur:7.0s;--del:-0.5s"><img src="loading-star4.webp" alt=""></div></div><h1>Sasya’s Room</h1><div id="bar"><div id="fill"></div></div><button id="enter">click anywhere to resume</button></div>
+
+<div id="load">
+  <h1 class="sr">Sasya’s Sandbox</h1>
+
+  <!-- scene A: cork board. The veil hides everything except the title, then opens as you scroll -->
+  <div class="scene" id="sceneA" aria-hidden="true">
+    <div class="stage">
+        <img id="heroBase" src="title.png" alt="" draggable="false" decoding="async" fetchpriority="high">
+        <img id="hero" src="main.png" alt="" draggable="false" decoding="async">
+    </div>
+  </div>
+
+  <!-- scene B: intro (placeholder background) -->
+  <div class="scene" id="sceneB">
+    <div id="bgB" aria-hidden="true"></div>
+    <div class="shade" aria-hidden="true"></div>
+    <div class="stamp" aria-hidden="true"><b>SASYA’S SANDBOX</b><span><i>build</i><i>break</i><i>learn</i></span></div>
+
+    <div class="beat intro">
+      <span class="ln"><b data-fact="Sepuluh Nopember Institute of Technology · Informatics Engineering · 2022–2026">Informatics</b> at ITS, Surabaya.</span>
+      <span class="ln">Teaches <b data-fact="A vision model squeezed to 2.23M parameters, still 95.64% accurate. No GPU needed.">tiny AI</b> to run where big GPUs can’t.</span>
+      <span class="ln">Breaks <b data-fact="At Accenture: 15+ critical defects caught before production, on a telco with 50M+ subscribers.">APIs</b> on purpose, pitches <b data-fact="Top 3 in the presentation event at Formula SAE Japan, in both 2023 and 2024.">race cars</b>,</span>
+      <span class="ln">and is, duh, a <b data-fact="There’s a pennant on the corkboard. It’s official.">museum nerd</b>.</span>
+      <p class="fact">(hover over the bold stuff)</p>
+    </div>
+
+    <h2 class="beat">Welcome to my <em>sandbox.</em></h2>
+
+    <button id="enter" disabled>setting up the room…</button>
+    <div class="caption" aria-hidden="true">PORTFOLIO · 2026</div>
+    <div class="ph" aria-hidden="true">placeholder bg · drop in intro-bg.jpg</div>
+  </div>
+
+  <div id="hint" aria-hidden="true"><span>scroll</span><i></i></div>
+  <button id="skip" type="button">skip intro</button>
+</div>
+
+<nav id="dock" aria-label="Contact">
+  <a href="https://www.linkedin.com/in/almira-ri" target="_blank" rel="noopener" class="li" aria-label="LinkedIn" data-tip="LinkedIn">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+  </a>
+  <a href="https://github.com/almirari" target="_blank" rel="noopener" class="gh" aria-label="GitHub" data-tip="GitHub">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+  </a>
+  <a href="https://wa.me/6285111205940" target="_blank" rel="noopener" class="wa" aria-label="WhatsApp" data-tip="WhatsApp">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .7c-.8-.4-1.5-1.1-1.9-1.9l.7-1-1-2z" fill="currentColor" stroke="none"/></svg>
+  </a>
+  <a href="mailto:almirari004@gmail.com" class="em" aria-label="Email" data-tip="Email">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+  </a>
+</nav>
+
 <div id="modal"><div id="box"><button id="x" aria-label="Close">×</button><div id="mc"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>

@@ -44,154 +44,40 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #ffd9b0; fon
 }
 .btn:hover { scale: 1.05; }
 
-/* ═════════ loading screen: wall + door ═════════ */
-:root {
-  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .3 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+/* ── contact dock: always on top, bottom-right, monochrome + translucent ── */
+#dock{
+  position:fixed; z-index:150;
+  right:max(16px, env(safe-area-inset-right)); bottom:max(16px, env(safe-area-inset-bottom));
+  display:flex; gap:10px;
 }
+#dock a{
+  position:relative; display:grid; place-items:center;
+  width:44px; height:44px; border-radius:50%;
+  color:#fff; background:rgba(255,255,255,.08);
+  border:1.5px solid rgba(255,255,255,.55);
+  box-shadow:0 0 0 1px rgba(0,0,0,.18);            /* thin dark edge so it stays visible on light areas */
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.35));
+  opacity:.6; transition:opacity .15s, background .15s, transform .15s;
+}
+#dock a svg{ width:22px; height:22px; display:block; }
+#dock a:hover, #dock a:focus-visible{
+  opacity:1; background:rgba(255,255,255,.22); transform:translateY(-2px); outline:none;
+}
+#dock a:focus-visible{ border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.7); }
 
-#load {
-  position: fixed; inset: 0; z-index: 50; overflow: auto; display: flex;
-  padding: 76px 16px 28px; background: #efe6d2;
-  font-family: 'Fredoka', system-ui, sans-serif; transition: opacity .8s;
+/* tooltip on hover */
+#dock a::after{
+  content:attr(data-tip); position:absolute; bottom:calc(100% + 8px); left:50%;
+  translate:-50% 4px; opacity:0; pointer-events:none; white-space:nowrap;
+  padding:4px 9px; border-radius:6px; background:rgba(0,0,0,.7); color:#fff;
+  font:600 11px/1.2 'Inter', system-ui, sans-serif; letter-spacing:.04em;
+  transition:opacity .15s, translate .15s;
 }
-.wall { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#dock a:hover::after, #dock a:focus-visible::after{ opacity:1; translate:-50% 0; }
 
-#door {
-  position: relative; margin: auto; width: min(88vw, 380px); padding: 12px;
-  background: #fbf9f4; border-radius: 6px; transform-origin: left center;
-  box-shadow: 0 0 0 3px #e9e3d6, 0 14px 30px rgba(60,40,20,.35), inset 0 0 0 2px #fff;
-  transition: transform .9s ease-in;
+@media (max-width:600px){
+  #dock{ gap:8px; }
+  #dock a{ width:38px; height:38px; }
+  #dock a svg{ width:19px; height:19px; }
+  #dock a::after{ display:none; }
 }
-#door.open { transform: perspective(1100px) rotateY(-78deg); }
-
-.leaf {
-  position: relative; overflow: hidden; border-radius: 3px; padding: 14px 12px;
-  display: flex; flex-direction: column; gap: 14px; background: #f6f3ec;
-}
-.grain { position: absolute; inset: 0; width: 100%; height: 100%; mix-blend-mode: multiply; opacity: .7; pointer-events: none; }
-
-/* raised door panels */
-.panel {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px;
-  padding: 20px 14px 52px; border-radius: 4px;
-  box-shadow: inset 3px 4px 7px rgba(80,60,40,.18), inset -2px -3px 5px rgba(255,255,255,.95), 0 0 0 1.5px rgba(0,0,0,.05);
-}
-.panel.low { padding: 22px 14px; min-height: 140px; justify-content: center; gap: 12px; }
-
-/* ───── garland (metallic foil stars) ───── */
-.garland { position: absolute; left: -6%; top: -54px; width: 112%; overflow: visible; pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0,0,0,.3)); }
-.sway { transform-box: fill-box; transform-origin: 50% 0; animation: sway 3.2s ease-in-out var(--d) infinite alternate; }
-@keyframes sway { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
-
-/* ───── hanging moon (jute string + command hook) ───── */
-.moon { display: flex; flex-direction: column; align-items: center; transform-origin: 50% 0; animation: swing 4s ease-in-out infinite alternate; }
-@keyframes swing { from { rotate: -4deg; } to { rotate: 4deg; } }
-.hook { display: block; width: 12px; height: 20px; border-radius: 3px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3), inset 0 -3px 0 #e8e4da; }
-.jute { display: block; width: 3px; height: 28px; background: repeating-linear-gradient(45deg, #c9a56b 0 2px, #9c7a44 2px 4px); }
-
-/* ───── felt pennant ───── */
-.pennant { position: relative; width: min(300px, 72vw); aspect-ratio: 5 / 2; rotate: -2deg; filter: drop-shadow(0 4px 3px rgba(0,0,0,.3)); }
-.cloth { position: absolute; inset: 0; clip-path: polygon(0 0, 100% 50%, 0 100%); background: var(--noise), #5f7d49; }
-.stitch { position: absolute; inset: 0; width: 100%; height: 100%; }
-.strip, .tas { /* floral fabric */
-  background:
-    radial-gradient(circle at 30% 25%, #f08fb0 0 3.5px, transparent 4.5px),
-    radial-gradient(circle at 70% 60%, #ffd26a 0 3.5px, transparent 4.5px),
-    radial-gradient(circle at 30% 90%, #7fb7e6 0 3.5px, transparent 4.5px), #f6ecd6;
-  background-size: 20px 24px;
-}
-.strip { position: absolute; left: -3px; top: -3%; width: 11%; height: 106%; box-shadow: 1px 0 2px rgba(0,0,0,.2); }
-.tas { position: absolute; left: -18px; width: 24px; height: 8px; border-radius: 4px; }
-.t1 { top: 16%; rotate: -14deg; } .t2 { top: 46%; rotate: 6deg; } .t3 { top: 74%; rotate: -8deg; }
-
-/* raised felt letters */
-#load h1 {
-  position: absolute; inset: 0; margin: 0; padding-left: 15%; display: flex; align-items: center;
-  font: 700 clamp(20px, 6vw, 30px)/1 'Fredoka', sans-serif; letter-spacing: .02em;
-  filter: drop-shadow(0 1.5px 0 rgba(0,0,0,.3));
-}
-.felt {
-  display: inline-block; color: transparent; rotate: calc(var(--r) * 1deg);
-  background: var(--noise), linear-gradient(#f6efdc, #f6efdc);
-  -webkit-background-clip: text; background-clip: text;
-}
-.sp { width: .3em; }
-
-/* ───── paper: polaroid, sticky note, washi tape ───── */
-.row { display: flex; align-items: flex-start; justify-content: center; gap: 14px; width: 100%; }
-.tape {
-  position: absolute; top: -9px; left: 50%; translate: -50% 0; rotate: -4deg; width: 52px; height: 17px; opacity: .9;
-  background: repeating-linear-gradient(45deg, rgba(240,143,176,.8) 0 6px, rgba(255,255,255,.75) 6px 12px);
-  box-shadow: 0 1px 2px rgba(0,0,0,.2);
-}
-.polaroid { position: relative; flex: none; width: 84px; padding: 6px 6px 24px; background: #fff; rotate: -6deg; box-shadow: 1px 3px 6px rgba(0,0,0,.3); }
-.polaroid i {
-  display: block; height: 72px;
-  background: radial-gradient(circle at 50% 40%, #fff2c2 0 12px, transparent 13px), linear-gradient(#ffb199, #ff6f91 60%, #7a4fd0);
-}
-.note {
-  position: relative; flex: 1; max-width: 190px; rotate: 3deg; padding: 14px 12px 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,.5), transparent 25%), var(--noise), #fdf0a0;
-  box-shadow: 1px 4px 6px rgba(0,0,0,.22);
-}
-.note .tape { rotate: 5deg; background: repeating-linear-gradient(45deg, rgba(126,183,230,.8) 0 6px, rgba(255,255,255,.75) 6px 12px); }
-#intro { min-height: 4.6em; font: 700 20px/1.1 'Caveat', cursive; color: #5a4a6a; }
-
-/* ───── felt cutouts + vinyl stickers (they "stick on" one by one) ───── */
-.pc {
-  position: absolute; width: clamp(44px, 12vw, 60px); rotate: calc(var(--r) * 1deg);
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,.25));
-  animation: stick .45s cubic-bezier(.3, 1.7, .5, 1) var(--d) both;
-}
-.vinyl { /* white die-cut border */
-  filter: drop-shadow(1.5px 0 0 #fff) drop-shadow(-1.5px 0 0 #fff) drop-shadow(0 1.5px 0 #fff) drop-shadow(0 -1.5px 0 #fff) drop-shadow(0 3px 3px rgba(0,0,0,.3));
-}
-@keyframes stick { from { scale: 1.9; opacity: 0; } 60% { opacity: 1; } }
-
-/* ───── caterpillar progress bar (main.js sets #fill width) ───── */
-#bar { position: relative; width: min(240px, 60vw); height: 34px; }
-#fill {
-  position: relative; height: 100%; width: 0;
-  background-image:
-    radial-gradient(circle at 15px 50%, #5f9e48 0 14px, transparent 14.5px),
-    radial-gradient(circle at 45px 50%, #8fcf6a 0 14px, transparent 14.5px),
-    repeating-linear-gradient(90deg, transparent 0 11px, #9a5b36 11px 17px, transparent 17px 30px); /* legs */
-  background-size: 60px 100%, 60px 100%, 100% 7px;
-  background-repeat: repeat-x, repeat-x, no-repeat;
-  background-position: 0 0, 0 0, 0 100%;
-}
-#fill::after { /* head */
-  content: ""; position: absolute; left: 100%; top: 50%; width: 36px; height: 36px; translate: -8px -50%; border-radius: 50%;
-  background:
-    radial-gradient(circle at 34% 42%, #222 0 2px, #f4ec6e 2.5px 6px, transparent 6.5px),
-    radial-gradient(circle at 70% 42%, #222 0 2px, #f4ec6e 2.5px 6px, transparent 6.5px), #d8404a;
-  box-shadow: inset -2px -3px 0 rgba(0,0,0,.15), 0 2px 3px rgba(0,0,0,.25);
-  animation: nod .6s ease-in-out infinite alternate;
-}
-#fill::before { /* antennae */
-  content: ""; position: absolute; left: 100%; top: -6px; width: 3px; height: 12px; translate: 6px 0; rotate: -20deg;
-  border-radius: 2px; background: #b36ad6; box-shadow: 9px 0 0 #b36ad6;
-}
-@keyframes nod { to { rotate: 8deg; } }
-
-/* ───── glossy sticker button ───── */
-#enter {
-  display: none; position: relative; overflow: hidden; border: 0; cursor: pointer; rotate: -3deg;
-  padding: 12px 28px; border-radius: 18px; font: 700 20px 'Fredoka', sans-serif; color: #c2457a; background: #ffe3ee;
-  box-shadow: 0 0 0 5px #fff, 0 7px 10px rgba(0,0,0,.3), inset 0 -4px 0 rgba(240,143,176,.45);
-  transition: scale .15s;
-}
-#enter:hover { scale: 1.06; }
-#enter::before { /* moving shine */
-  content: ""; position: absolute; inset: 0; animation: shine 2.8s ease-in-out infinite;
-  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.85) 48%, transparent 60%) -150% 0 / 250% 100% no-repeat;
-}
-#enter::after { /* peeling corner */
-  content: ""; position: absolute; right: 0; bottom: 0; width: 20px; height: 20px;
-  background: linear-gradient(to top left, #f6c3d6 50%, transparent 50%); border-top-left-radius: 6px;
-}
-@keyframes shine { to { background-position: 150% 0; } }
-
-/* ───── small screens + reduced motion ───── */
-@media (max-height: 760px) { #door { zoom: .82; } }
-@media (prefers-reduced-motion: reduce) { #load *, #load *::before, #load *::after { animation: none !important; } }
