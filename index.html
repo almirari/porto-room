@@ -14,7 +14,7 @@
 <div id="load">
   <h1 class="sr">Sasya’s Sandbox</h1>
 
-  <!-- scene A: cork board. The veil hides everything except the title, then opens as you scroll -->
+  <!-- scene A: title.png, then main.png (the full board) fades in on top as you scroll -->
   <div class="scene" id="sceneA" aria-hidden="true">
     <div class="stage">
         <img id="heroBase" src="title.png" alt="" draggable="false" decoding="async" fetchpriority="high">
@@ -26,7 +26,6 @@
   <div class="scene" id="sceneB">
     <div id="bgB" aria-hidden="true"></div>
     <div class="shade" aria-hidden="true"></div>
-    <div class="stamp" aria-hidden="true"><b>SASYA’S SANDBOX</b><span><i>build</i><i>break</i><i>learn</i></span></div>
 
     <div class="beat intro">
       <span class="ln"><b data-fact="Sepuluh Nopember Institute of Technology · Informatics Engineering · 2022–2026">Informatics</b> at ITS, Surabaya.</span>
@@ -35,12 +34,10 @@
       <span class="ln">and is, duh, a <b data-fact="There’s a pennant on the corkboard. It’s official.">museum nerd</b>.</span>
       <p class="fact">(hover over the bold stuff)</p>
     </div>
-
-    <h2 class="beat">Welcome to my <em>sandbox.</em></h2>
-
-    <button id="enter" disabled>setting up the room…</button>
+    
+    <p id="cta" aria-hidden="true"><span>click anywhere to continue</span></p>
+    <p id="status" aria-live="polite">setting up the room…</p>
     <div class="caption" aria-hidden="true">PORTFOLIO · 2026</div>
-    <div class="ph" aria-hidden="true">placeholder bg · drop in intro-bg.jpg</div>
   </div>
 
   <div id="hint" aria-hidden="true"><span>scroll</span><i></i></div>

@@ -25,14 +25,13 @@ function wrapWords(el) {
 export function initIntro({ onEnter }) {
   const load = $('load'), hero = $('hero'), base = $('heroBase');
   const sceneA = $('sceneA'), sceneB = $('sceneB');
-  const hint = $('hint'), enter = $('enter'), skip = $('skip');
-  const stamp = sceneB.querySelector('.stamp');
+  const hint = $('hint'), status = $('status'), skip = $('skip'), cta = $('cta');
   const caption = sceneB.querySelector('.caption');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const touch = matchMedia('(pointer: coarse)').matches;
 
   // [start, end] of scroll progress for each text beat
-  const RANGES = [[0.50, 0.84], [0.84, 1.0]];
+  const RANGES = [[0.50, 1.0]];
   const beats = [...sceneB.querySelectorAll('.beat')].map(el => {
     wrapWords(el);
     return { el, words: [...el.querySelectorAll('.w')] };
@@ -50,11 +49,12 @@ export function initIntro({ onEnter }) {
   sceneB.addEventListener('pointerout',  e => { if (e.pointerType === 'mouse') showFact(null); });
   sceneB.addEventListener('click', e => { const b = e.target.closest('b[data-fact]'); if (b) showFact(b); });
 
-  // fade the illustration in once it's decoded (no half-loaded flash)
+  // start decoding the images early (no half-loaded flash)
   base.decode().catch(() => {});
   hero.decode().catch(() => {});
 
   let ready = false, entered = false, raf = 0;
+  let wantGo = false, skipped = false;   // wantGo = user clicked to continue, skipped = pressed "skip intro"
   let target = 0, cur = 0, drawn = -1;   // scroll progress 0..1 (target = input, cur = smoothed)
 
   // ───── input: wheel / touch / keys all just move `target` ─────
@@ -68,23 +68,32 @@ export function initIntro({ onEnter }) {
     nudge((ty - y) / (innerHeight * 1.8));
     ty = y;
   };
+
+  const requestGo = () => { wantGo = true; target = 1; cta.style.opacity = 0; };
+
   const onKey = e => {
     if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') nudge(0.08);
     else if (e.key === 'ArrowUp' || e.key === 'PageUp') nudge(-0.08);
     else if (e.key === 'End') target = 1;
     else if (e.key === 'Home') target = 0;
-    else if (e.key === 'Enter') go();
+    else if (e.key === 'Enter') { if (cur >= 0.97) requestGo(); else target = 1; }
   };
   addEventListener('wheel', onWheel, { passive: true });
   addEventListener('touchstart', onTouchStart, { passive: true });
   addEventListener('touchmove', onTouchMove, { passive: true });
   addEventListener('keydown', onKey);
-  skip.onclick = () => { target = 1; };
-  enter.onclick = go;
+
+  skip.onclick = () => { target = 1; skipped = true; };
+
+  // click anywhere (once the text is fully shown) → enter the room
+  load.addEventListener('click', e => {
+    if (cur < 0.97 || e.target.closest('#skip, b[data-fact]')) return;   // bold words stay tappable for their facts
+    requestGo();
+  });
 
   // ───── one frame for progress p (only opacity/transform, so it stays on the GPU) ─────
   function render(p) {
-    // A: title first, then the veil's window widens and the corkboard appears from the center out
+    // A: title first, then the full board fades in on top
     const r = ease(range(p, 0.04, 0.40));   // 0 = title only, 1 = full board
     hero.style.opacity = r;
     base.style.visibility = r >= 1 ? 'hidden' : 'visible';
@@ -94,7 +103,7 @@ export function initIntro({ onEnter }) {
     sceneB.style.opacity = b;
     sceneB.style.visibility = b > 0 ? 'visible' : 'hidden';
     sceneA.style.visibility = b >= 1 ? 'hidden' : 'visible';
-    stamp.style.opacity = caption.style.opacity = range(p, 0.52, 0.6);
+    caption.style.opacity = range(p, 0.52, 0.6);
 
     hint.style.opacity = 1 - range(p, 0, 0.04);
     skip.style.opacity = 1 - range(p, 0.9, 0.97);
@@ -102,12 +111,10 @@ export function initIntro({ onEnter }) {
 
     // B: line-by-line / word-by-word reveals
     beats.forEach((bt, i) => {
-      const [s, e] = RANGES[i];
-      const t = range(p, s, e);
-      const last = i === beats.length - 1;
-      const exit = last ? 0 : range(t, 0.85, 1);
-      bt.el.style.opacity = t > 0 ? 1 - exit : 0;
-      bt.el.classList.toggle('live', t > 0.05 && exit < 0.5);   // bold words are hoverable only while visible
+      const [s] = RANGES[i];
+      const t = range(p, s, RANGES[i][1]);
+      bt.el.style.opacity = t > 0 ? 1 : 0;
+      bt.el.classList.toggle('live', t > 0.05);   // bold words are hoverable only while visible
       const reveal = clamp(t / 0.4);
       const n = bt.words.length;
       bt.words.forEach((w, k) => {
@@ -117,10 +124,9 @@ export function initIntro({ onEnter }) {
       });
     });
 
-    // CTA
-    const cta = range(p, 0.93, 0.99);
-    enter.style.opacity = cta;
-    enter.style.pointerEvents = cta > 0.9 ? 'auto' : 'none';
+    // "click anywhere to continue" appears once the text is fully revealed
+    cta.style.opacity = (wantGo || skipped) ? 0 : range(p, 0.96, 1);
+    load.style.cursor = p >= 0.97 ? 'pointer' : '';
   }
 
   function tick(now) {
@@ -130,30 +136,35 @@ export function initIntro({ onEnter }) {
     cur = reduce ? target : cur + (target - cur) * (1 - Math.exp(-dt * 7));
     if (Math.abs(target - cur) < 0.0004) cur = target;
     if (cur !== drawn) { render(cur); drawn = cur; }   // idle = zero work
+
+    if (cur >= 0.995 && (wantGo || skipped)) {
+      if (ready) go();
+      else status.style.opacity = 1;   // clicked before the models finished loading
+    }
   }
   tick.last = 0;
   raf = requestAnimationFrame(tick);
 
   // ───── enter the 3D room ─────
   function go() {
-    if (!ready || entered || cur < 0.97) return;
+    if (!ready || entered || cur < 0.995) return;
     entered = true;
     cancelAnimationFrame(raf);
     removeEventListener('wheel', onWheel);
     removeEventListener('touchstart', onTouchStart);
     removeEventListener('touchmove', onTouchMove);
     removeEventListener('keydown', onKey);
-    load.classList.add('out');
-    setTimeout(() => (load.style.display = 'none'), 900);
-    onEnter();
+    status.style.opacity = 0;
+    load.style.cursor = '';
+    onEnter();                         // 3D starts rendering + camera fly-in starts NOW
+    load.classList.add('out');         // text zooms, background fades (CSS)
+    setTimeout(() => (load.style.display = 'none'), 1500);
   }
 
   return {
     setReady() {                       // called by main.js once the .glb models are in
       ready = true;
-      enter.disabled = false;
-      enter.classList.add('ready');
-      enter.textContent = 'step inside';
+      status.style.opacity = 0;        // if the user already clicked, tick() calls go() on the next frame
     },
   };
 }

@@ -1,15 +1,25 @@
 /* ═════════ Loading screen — scroll intro ═════════ */
-#load{
-  --cork:#a8763a;                      /* match this to the average cork colour in main.png */
-  position:fixed; inset:0; z-index:100; display:block; padding:0; overflow:hidden;
-  background:var(--cork); color:#fff; font-family:'Fraunces', Georgia, serif;
-  transition:opacity .9s ease;
+#load{ transition:background-color 1.2s ease .15s; }
+
+/* ── transisi masuk: terbang menembus teks ── */
+#load.out{ background-color:transparent; pointer-events:none; }
+#load.out #bgB,
+#load.out .shade{ opacity:0; transition:opacity 1.2s ease .15s; }
+#load.out .beat.intro{
+  will-change:scale, opacity;
+  scale:8; opacity:0 !important;
+  transition:scale 1.3s cubic-bezier(.55,0,.9,.45), opacity .9s ease-in .25s;
 }
-#load.out{ opacity:0; pointer-events:none; }
+#load.out .caption,
+#load.out #hint,
+#load.out #skip,
+#load.out #cta,
+#load.out #status{ opacity:0 !important; transition:opacity .3s; }
 #load h1.sr{
   position:absolute; width:1px; height:1px; margin:0; padding:0; inset:auto;
   overflow:hidden; clip:rect(0 0 0 0); display:block; font-size:1px;
 }
+
 .scene{ position:absolute; inset:0; }
 
 /* ── scene A: the board, drawn at native size (no zoom = always sharp) ── */
@@ -62,10 +72,14 @@
 
 /* about-me beat: light Inter, bold keywords, like the reference */
 .beat.intro{
-  width:min(980px, 90vw);
+  top:50%; width:min(760px, 88vw);
+  padding-top:3.4rem;            /* seimbangkan tinggi .fact di bawah, jadi baris utama pas di tengah */
   font-family:'Inter', system-ui, sans-serif; font-weight:300; text-transform:none;
-  font-size:clamp(24px, 4.4vw, 56px); line-height:1.14; letter-spacing:-.015em;
+  font-size:clamp(20px, 2.6vw, 36px); line-height:1.22; letter-spacing:-.01em;
+  text-align:center;
 }
+
+.beat.intro .ln{ display:block; text-wrap:balance; }   /* kalau terpaksa pecah, pecahnya seimbang, tanpa kata yatim */
 .beat.intro .w{ display:block; margin:0; }
 .beat.intro b{ font-weight:700; border-radius:.2em; transition:background .2s; }
 .beat.intro.live b{ pointer-events:auto; cursor:default; }
@@ -77,18 +91,11 @@
 }
 .beat.intro .fact.on{ color:#f2cf75; }
 
-/* ── CTA: plain text button, no progress bar ── */
-#enter{
-  all:unset; display:block; box-sizing:border-box;
-  position:absolute; left:50%; top:68%; translate:-50% 0; opacity:0;
-  padding:14px 36px; border-radius:99px; background:#fff; color:#1a2bb0;
-  font:800 18px/1 'Fraunces', serif; letter-spacing:.06em; white-space:nowrap; cursor:pointer;
-  box-shadow:0 8px 24px rgba(0,0,0,.3); transition:scale .15s;
+#status{
+  position:absolute; left:50%; bottom:max(64px, 9vh); translate:-50% 0;
+  margin:0; opacity:0; pointer-events:none;
+  font:500 13px/1 'Inter', system-ui, sans-serif; letter-spacing:.08em; color:rgba(255,255,255,.7);
 }
-#enter::before, #enter::after{ content:none !important; display:none !important; }
-#enter:disabled{ cursor:default; background:rgba(255,255,255,.75); color:#6b6b6b; }
-#enter.ready:hover{ scale:1.06; }
-#enter:focus-visible{ outline:3px solid #f2cf75; outline-offset:3px; }
 
 /* ── hint + skip ── */
 #hint{
@@ -104,5 +111,15 @@
   padding:8px 12px; border-radius:99px; background:rgba(0,0,0,.25);
 }
 #skip:hover{ background:rgba(0,0,0,.4); }
+
+/* "click anywhere to continue" prompt */
+#cta{
+  position:absolute; left:50%; bottom:max(64px, 9vh); translate:-50% 0;
+  margin:0; opacity:0; pointer-events:none;
+  font:500 13px/1 'Inter', system-ui, sans-serif; letter-spacing:.14em; text-transform:uppercase;
+  color:rgba(255,255,255,.85);
+}
+#cta span{ display:block; animation:pulse 1.8s ease-in-out infinite; }
+@keyframes pulse{ 0%,100%{ opacity:.45; } 50%{ opacity:1; } }
 
 @media (prefers-reduced-motion: reduce){ #hint i{ animation:none; } #hero{ transition:none; } }

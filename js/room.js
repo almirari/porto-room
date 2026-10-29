@@ -491,7 +491,7 @@ export function buildRoom(scene, on, actions) {
     },
   });
 
-    // ═════════ fire escape outside the windows (models/fireescape.glb) ═════════
+  // ═════════ fire escape outside the windows (models/fireescape.glb) ═════════
   const FIRE_H      = 5.5;    // total model height in meters (platform railing is about 1 m of that)
   const FIRE_BOTTOM = -2.3;   // world height of the model's lowest point. The platform floor sits ~1 m above it, so
                               // -0.2 puts the floor at ~0.8, just under the sill, and the railing shows through the windows
@@ -757,37 +757,37 @@ export function buildRoom(scene, on, actions) {
           // pull the whole lamp forward until its backmost point clears the wall
           if (lb.min.z < B + LAMP_WALL_GAP) {
             // recolor red -> yellow
-          const LAMP_HUE = 50;   // degrees to rotate (0 = stays red, 50 = yellow, 25 = orange)
-          const toYellow = m => {
-            m = m.clone();
-            if (m.map && m.map.image) {
-              const c = document.createElement('canvas');
-              c.width = m.map.image.width; c.height = m.map.image.height;
-              const g = c.getContext('2d');
-              g.filter = `hue-rotate(${LAMP_HUE}deg)`;
-              g.drawImage(m.map.image, 0, 0);
-              const tex = new T.CanvasTexture(c);
-              tex.flipY = m.map.flipY;
-              tex.wrapS = m.map.wrapS; tex.wrapT = m.map.wrapT;
-              if (m.map.colorSpace !== undefined) tex.colorSpace = m.map.colorSpace;
-              tex.needsUpdate = true;
-              m.map = tex;
-            } else if (m.color) {
-              const hsl = {};
-              m.color.getHSL(hsl);
-              m.color.setHSL(LAMP_HUE / 360, Math.max(hsl.s, 0.8), hsl.l);   // keep the shading, swap the hue
-            }
-            if (m.emissive) {
-              const e = {};
-              m.emissive.getHSL(e);
-              if (e.s > 0) m.emissive.setHSL(LAMP_HUE / 360, e.s, e.l);
-            }
-            return m;
-          };
-          holder.traverse(o => {
-            if (!o.isMesh) return;
-            o.material = Array.isArray(o.material) ? o.material.map(toYellow) : toYellow(o.material);
-          });
+            const LAMP_HUE = 50;   // degrees to rotate (0 = stays red, 50 = yellow, 25 = orange)
+            const toYellow = m => {
+              m = m.clone();
+              if (m.map && m.map.image) {
+                const c = document.createElement('canvas');
+                c.width = m.map.image.width; c.height = m.map.image.height;
+                const g = c.getContext('2d');
+                g.filter = `hue-rotate(${LAMP_HUE}deg)`;
+                g.drawImage(m.map.image, 0, 0);
+                const tex = new T.CanvasTexture(c);
+                tex.flipY = m.map.flipY;
+                tex.wrapS = m.map.wrapS; tex.wrapT = m.map.wrapT;
+                if (m.map.colorSpace !== undefined) tex.colorSpace = m.map.colorSpace;
+                tex.needsUpdate = true;
+                m.map = tex;
+              } else if (m.color) {
+                const hsl = {};
+                m.color.getHSL(hsl);
+                m.color.setHSL(LAMP_HUE / 360, Math.max(hsl.s, 0.8), hsl.l);   // keep the shading, swap the hue
+              }
+              if (m.emissive) {
+                const e = {};
+                m.emissive.getHSL(e);
+                if (e.s > 0) m.emissive.setHSL(LAMP_HUE / 360, e.s, e.l);
+              }
+              return m;
+            };
+            holder.traverse(o => {
+              if (!o.isMesh) return;
+              o.material = Array.isArray(o.material) ? o.material.map(toYellow) : toYellow(o.material);
+            });
             holder.position.z += (B + LAMP_WALL_GAP) - lb.min.z;
             holder.updateMatrixWorld(true);
           }
@@ -879,15 +879,43 @@ export function buildRoom(scene, on, actions) {
         });
       }
 
-      // ═════════ RB19 hung on the front wall above the mushroom lamp, nose pointing up ═════════
-      const CAR_LEN    = 1.0;      // car length in meters (it stands upright, so this is its height on the wall)
-      const CAR_CENTER = 1.9;      // height of the car's middle above the floor
-      const MOUNT      = 'top';    // 'top' = you see the car from above, like it's driving up the wall
-                                   // 'side' = side profile, nose up
-      const NOSE_BACK  = false;    // set true if the nose ends up pointing down
+      // ═════════ front wall: RB19 + corkboard (car and board are placed together) ═════════
+      // Looking at the front wall from inside the room, -x is to the RIGHT on screen (toward the bed).
+      const CAR_LEN       = 1.0;    // car length in meters (it stands upright, so this is its height on the wall)
+      const CAR_CENTER    = 1.9;    // height of the car's middle above the floor
+      const MOUNT         = 'top';  // 'top' = you see the car from above, like it's driving up the wall
+                                    // 'side' = side profile, nose up
+      const NOSE_BACK     = false;  // set true if the nose ends up pointing down
+      const CAR_SHIFT     = 0.1;    // how far the car moves toward the bed from the nightstand (raise = further right on screen)
+      const BOARD_H       = 0.9;    // corkboard height in meters (width follows the image's proportions)
+      const BOARD_Y       = 1.9;    // height of the board's middle, same as the car
+      const BOARD_CAR_GAP = 0.09;   // empty space between the car's edge and the board
+
+      const carX = nsX - CAR_SHIFT;
+
+      // the board hangs off the car's bed-side edge. carEdgeX is a guess until the car loads and is measured.
+      let carEdgeX = carX - 0.2;
+      let boardW = BOARD_H * 2;     // guess until the texture loads
+      const placeBoard = () => {
+        corkboard.scale.x = boardW;
+        corkboard.position.x = carEdgeX - BOARD_CAR_GAP - boardW / 2;   // board's near edge stays BOARD_CAR_GAP from the car
+      };
+
+      const boardTex = new T.TextureLoader().load('textures/corkboard.png', tex => {
+        boardW = BOARD_H * tex.image.width / tex.image.height;
+        placeBoard();
+      });
+      if (T.SRGBColorSpace) boardTex.colorSpace = T.SRGBColorSpace;
+      boardTex.anisotropy = 8;
+
+      const corkboard = picture(1, BOARD_H, boardTex, carEdgeX - BOARD_CAR_GAP - 0.5, BOARD_Y, F - GAP, Math.PI);
+      corkboard.material.transparent = true;
+      corkboard.material.alphaTest = 0.05;   // skips fully clear pixels, avoids dark fringes
+      corkboard.material.needsUpdate = true;
+      placeBoard();
 
       loadModel(scene, 'models/rb19.glb', {
-        x: nsX, y: CAR_CENTER - CAR_LEN / 2, z: F - 0.1, height: CAR_LEN, ry: 0, brighten: 0.5,
+        x: carX, y: CAR_CENTER - CAR_LEN / 2, z: F - 0.1, height: CAR_LEN, ry: 0, brighten: 0.5,
         prepare: o => {
           if (MOUNT === 'top') o.rotation.set(-Math.PI / 2, NOSE_BACK ? Math.PI : 0, 0);
           else o.rotation.set(NOSE_BACK ? Math.PI / 2 : -Math.PI / 2, Math.PI / 2, 0, 'YXZ');
@@ -898,6 +926,11 @@ export function buildRoom(scene, on, actions) {
           const cb = new T.Box3().setFromObject(holder);
           holder.position.z += (F - GAP) - cb.max.z;
           holder.updateMatrixWorld(true);
+
+          // measure the car's real edge on the bed side, then slide the board against it
+          cb.setFromObject(holder);
+          carEdgeX = cb.min.x;
+          placeBoard();
         },
       });
 
@@ -967,9 +1000,9 @@ export function buildRoom(scene, on, actions) {
   if (T.SRGBColorSpace) vinylTex.colorSpace = T.SRGBColorSpace;
   vinylTex.anisotropy = 8;
   const vinylPoster = picture(
-  VINYL_POSTER_W, VINYL_POSTER_H, vinylTex,
-  R - GAP, 2.5, dresserZ - 0.2,
-  -Math.PI / 2
+    VINYL_POSTER_W, VINYL_POSTER_H, vinylTex,
+    R - GAP, 2.5, dresserZ - 0.2,
+    -Math.PI / 2
   );
   vinylPoster.material.transparent = true;
   vinylPoster.material.alphaTest = 0.05;   // fully clear pixels are skipped, avoids dark fringes at the edges

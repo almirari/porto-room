@@ -13,11 +13,16 @@ const tag = $('tag');
 // ───────────── loading screen (scroll intro lives in intro.js) ─────────────
 let loaded = false;
 let needsFrame = true;   // draw the 3D scene once (compiles shaders), then pause until the intro is done
-const intro = initIntro({ onEnter: () => { loaded = true; } });
+
+// camera "flies in" from slightly behind/above and lands on its start position
+const fly = { on: false, t0: 0, dur: 2200, back: 2.2, up: 0.9 };
+const intro = initIntro({
+  onEnter: () => { loaded = true; fly.t0 = performance.now(); fly.on = true; },
+});
 
 // ───────────── renderer, scene, camera ─────────────
 const renderer = new T.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.shadowMap.enabled = true;
 
 const scene = new T.Scene();
@@ -149,7 +154,7 @@ addEventListener('pointermove', e => {
 addEventListener('pointerup', e => {
   const wasTap = drag && drag.moved < 6;
   drag = null;
-  if (!wasTap || !loaded || isOpen()) return;
+  if (!wasTap || !loaded || fly.on || isOpen()) return;
 
   const thing = clickableAt(e);
   if (thing) thing.userData.fn(); // tapped furniture → open it
@@ -192,7 +197,7 @@ function tryMove({ dx, dz }) {
 }
 
 function updatePlayer(dt) {
-  if (!loaded || isOpen()) return;
+  if (!loaded || fly.on || isOpen()) return;
 
   let move = keyboardMove(dt);
   if (move) stopWalking();            // pressing a key cancels tap-to-move
@@ -216,6 +221,19 @@ function loop(t) {
   updatePlayer(dt);
   motes.rotation.y += dt * 0.02;
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
+    // temporary fly-in offset: applied only for this render, then removed (real camera position never changes)
+  let off = null;
+  if (fly.on) {
+    const k = Math.min(1, (performance.now() - fly.t0) / fly.dur);
+    const d = Math.pow(1 - k, 3);                         // ease-out: cepat di awal, mendarat halus
+    const dir = new T.Vector3();
+    camera.getWorldDirection(dir);
+    off = dir.multiplyScalar(-fly.back * d);              // mundur dari arah pandang...
+    off.y += fly.up * d;                                  // ...dan agak naik
+    camera.position.add(off);
+    if (k >= 1) fly.on = false;
+  }
   if (loaded || needsFrame) { renderer.render(scene, camera); needsFrame = false; }
+  if (off) camera.position.sub(off);
 }
 loop(0);
