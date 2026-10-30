@@ -2,12 +2,15 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sasya’s Sandbox</title>
-<link rel="preload" as="image" href="title.png">
+<link rel="preload" as="image" href="title.png" media="(orientation: landscape)">
+<link rel="preload" as="image" href="title-portrait.png" media="(orientation: portrait)">
+<link rel="preload" as="image" href="main.png" media="(orientation: landscape)">
+<link rel="preload" as="image" href="main-portrait.png" media="(orientation: portrait)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,800;0,9..144,900;1,9..144,500&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="loading.css">
-<link rel="preload" as="image" href="main.png"></head><body>
+</head><body>
 <canvas id="c"></canvas><div id="tag"></div>
 <div id="hud">WASD / arrows to walk · drag to look · click things to explore</div>
 
@@ -17,8 +20,14 @@
   <!-- scene A: title.png, then main.png (the full board) fades in on top as you scroll -->
   <div class="scene" id="sceneA" aria-hidden="true">
     <div class="stage">
+      <picture>
+        <source media="(orientation: portrait)" srcset="title-portrait.png">
         <img id="heroBase" src="title.png" alt="" draggable="false" decoding="async" fetchpriority="high">
+      </picture>
+      <picture>
+        <source media="(orientation: portrait)" srcset="main-portrait.png">
         <img id="hero" src="main.png" alt="" draggable="false" decoding="async">
+      </picture>
     </div>
   </div>
 
@@ -37,7 +46,6 @@
     
     <p id="cta" aria-hidden="true"><span>click anywhere to continue</span></p>
     <p id="status" aria-live="polite">setting up the room…</p>
-    <div class="caption" aria-hidden="true">PORTFOLIO · 2026</div>
   </div>
 
   <div id="hint" aria-hidden="true"><span>scroll</span><i></i></div>

@@ -1095,27 +1095,22 @@ export function buildRoom(scene, on, actions) {
   vine(R - 0.07, CEIL - 0.05, -1.85, 0.6);
   vine(R - 0.07, CEIL - 0.05, -1.7,  0.45);
 
-  // ═════════ left wall: gig posters + polaroid collage ═════════
-  const gigPoster = (g, w, h) => {
-    g.fillStyle = '#ffe14d'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#1a1a1a'; g.textAlign = 'center';
-    g.font = 'bold 54px Impact, sans-serif'; g.fillText('LIVE', w / 2, 70);
-    g.font = 'bold 28px sans-serif'; g.fillText('IN CONCERT', w / 2, 110);
-    g.fillRect(30, 128, w - 60, 3);
-    g.fillStyle = '#e0485a'; g.beginPath(); g.arc(w / 2, 215, 55, 0, 7); g.fill();
-    g.fillStyle = '#1a1a1a'; g.font = 'bold 20px sans-serif'; g.fillText('FRI · 8PM · THE ROOM', w / 2, h - 28);
-  };
-  const ufoPoster = (g, w, h) => {
-    g.fillStyle = '#e9eef2'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#1b1f2a';
-    g.beginPath(); g.ellipse(w / 2, 95, 52, 12, 0, 0, 7); g.fill();
-    g.beginPath(); g.ellipse(w / 2, 85, 22, 14, 0, Math.PI, 0); g.fill();
-    g.fillRect(0, h - 120, w, 120);
-    g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = 'bold 26px sans-serif';
-    g.fillText('WE ARE', w / 2, h - 72); g.fillText('NOT ALONE', w / 2, h - 40);
-  };
-  wallArt(0.7, 1.0, gigPoster, L + GAP, 1.75, -1.95, Math.PI / 2,  0.02);
-  wallArt(0.7, 1.0, ufoPoster, L + GAP, 1.75, -1.1,  Math.PI / 2, -0.03);
+  // ═════════ left wall: booknook poster (replaces the two small posters) ═════════
+  const BOOKNOOK_H  = 1.2;      // height in meters (width follows the image's proportions)
+  const BOOKNOOK_Y  = 1.75;     // height of the poster's middle above the floor
+  const BOOKNOOK_Z  = -1;   // center along the wall (the middle of where the two posters were)
+
+  const booknookTex = new T.TextureLoader().load('textures/booknook.png', tex => {
+    // size to the image's real proportions once it has loaded
+    booknook.scale.x = BOOKNOOK_H * tex.image.width / tex.image.height;
+  });
+  if (T.SRGBColorSpace) booknookTex.colorSpace = T.SRGBColorSpace;
+  booknookTex.anisotropy = 8;
+
+  const booknook = picture(1, BOOKNOOK_H, booknookTex, L + GAP, BOOKNOOK_Y, BOOKNOOK_Z, Math.PI / 2);
+  booknook.material.transparent = true;
+  booknook.material.alphaTest = 0.05;   // skips fully clear pixels, avoids dark fringes
+  booknook.material.needsUpdate = true;
 
   // polaroid grid over the bed (more saturated so they read as photos)
   const TINTS = [['#ff9eb5', '#ffc27a'], ['#8cc8f0', '#c6e88f'], ['#b79cf0', '#ff9ec9'], ['#7fd1a5', '#ffe27a']];

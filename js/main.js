@@ -12,12 +12,21 @@ const tag = $('tag');
 
 // ───────────── loading screen (scroll intro lives in intro.js) ─────────────
 let loaded = false;
-let needsFrame = true;   // draw the 3D scene once (compiles shaders), then pause until the intro is done
+let needsFrame = true;
+
+// HUD hidden during the intro, fades in once the 3D room starts
+const hud = $('hud');
+hud.style.opacity = 0;
+hud.style.transition = 'opacity 0.8s ease';
+hud.style.pointerEvents = 'none';
 
 // camera "flies in" from slightly behind/above and lands on its start position
 const fly = { on: false, t0: 0, dur: 2200, back: 2.2, up: 0.9 };
 const intro = initIntro({
-  onEnter: () => { loaded = true; fly.t0 = performance.now(); fly.on = true; },
+  onEnter: () => {
+    loaded = true; fly.t0 = performance.now(); fly.on = true;
+    hud.style.opacity = '';                              // fade in
+  },
 });
 
 // ───────────── renderer, scene, camera ─────────────

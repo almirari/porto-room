@@ -80,4 +80,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #ffd9b0; fon
   #dock a{ width:38px; height:38px; }
   #dock a svg{ width:19px; height:19px; }
   #dock a::after{ display:none; }
+
+  /* HUD naik di atas dock (dock: 38px + jarak 16px dari bawah) */
+  #hud{
+    bottom: calc(66px + env(safe-area-inset-bottom));
+    max-width: calc(100vw - 32px);
+  }
 }

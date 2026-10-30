@@ -27,6 +27,7 @@
   --w:max(100vw, calc(100vh * 16 / 9));          /* behaves like background-size: cover */
   position:absolute; left:50%; top:50%; translate:-50% -50%;
   width:var(--w); aspect-ratio:16 / 9;
+  display: contents;
 }
 @media (max-aspect-ratio:1/1){ .stage{ --w:100vw; } }   /* portrait phones: whole board, letterboxed */
 .stage img{
@@ -34,6 +35,12 @@
   user-select:none; -webkit-user-drag:none;
 }
 #hero{ opacity:0; will-change:opacity; }   /* the full board, faded in by scroll */
+
+#hero,
+#heroBase {
+  object-fit: cover;       /* isi layar penuh tanpa distorsi, kelebihannya dipotong */
+  object-position: center; /* potong dari atas dan bawah secara merata */
+}
 
 /* ── scene B: intro ── */
 #sceneB{ opacity:0; visibility:hidden; }
@@ -102,13 +109,16 @@
   position:absolute; bottom:max(24px, 4vh); left:50%; translate:-50% 0; z-index:3;
   display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none;
   font:700 12px/1 'Fraunces', serif; letter-spacing:.2em; text-transform:uppercase; text-shadow:0 1px 6px rgba(0,0,0,.6);
+  color: #fff;
 }
-#hint i{ width:2px; height:28px; background:#fff; transform-origin:top; animation:drip 1.6s ease-in-out infinite; }
+#hint i{ width:2px; height:28px; background:#fff; transform-origin:top; animation:drip 1.6s ease-in-out infinite; color: #fff;}
 @keyframes drip{ 0%{ scale:1 0; opacity:0; } 40%{ scale:1 1; opacity:1; } 100%{ scale:1 1; opacity:0; } }
 #skip{
   all:unset; position:absolute; top:max(18px, 3vh); right:20px; z-index:3; cursor:pointer;
   font:600 12px/1 'Fraunces', serif; letter-spacing:.12em; text-transform:uppercase;
   padding:8px 12px; border-radius:99px; background:rgba(0,0,0,.25);
+  color: #fff;
+  border-color: #fff; 
 }
 #skip:hover{ background:rgba(0,0,0,.4); }
 
@@ -118,6 +128,7 @@
   margin:0; opacity:0; pointer-events:none;
   font:500 13px/1 'Inter', system-ui, sans-serif; letter-spacing:.14em; text-transform:uppercase;
   color:rgba(255,255,255,.85);
+  white-space: nowrap;
 }
 #cta span{ display:block; animation:pulse 1.8s ease-in-out infinite; }
 @keyframes pulse{ 0%,100%{ opacity:.45; } 50%{ opacity:1; } }

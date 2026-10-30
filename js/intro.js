@@ -103,7 +103,7 @@ export function initIntro({ onEnter }) {
     sceneB.style.opacity = b;
     sceneB.style.visibility = b > 0 ? 'visible' : 'hidden';
     sceneA.style.visibility = b >= 1 ? 'hidden' : 'visible';
-    caption.style.opacity = range(p, 0.52, 0.6);
+    if (caption) caption.style.opacity = range(p, 0.52, 0.6);
 
     hint.style.opacity = 1 - range(p, 0, 0.04);
     skip.style.opacity = 1 - range(p, 0.9, 0.97);
