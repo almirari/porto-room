@@ -129,38 +129,6 @@ export function buildRoom(scene, on, actions) {
       g.fill();
     }, x, y, z, ry, tilt);
 
-  // hanging ivy strand (leaves on a vertical chain)
-  const vine = (x, yTop, z, length) => {
-    const n = Math.round(length / 0.11);
-    for (let i = 0; i < n; i++) {
-      const leaf = sphere(0.045, i % 2 ? 0x5da35f : 0x78b86c, x + Math.sin(i * 1.3) * 0.04, yTop - i * 0.11, z + Math.cos(i * 1.7) * 0.03);
-      leaf.scale.set(1.3, 0.6, 1);
-      leaf.castShadow = false;
-    }
-  };
-
-  // plush star (extruded star shape with a face)
-  const plushStar = (x, y, z, ry, color = 0xffd54d) => {
-    const shape = new T.Shape();
-    const spikes = 5, outer = 0.22, inner = 0.12;
-    for (let i = 0; i < spikes * 2; i++) {
-      const r = i % 2 ? inner : outer;
-      const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
-      const px = Math.cos(a) * r, py = Math.sin(a) * r;
-      i === 0 ? shape.moveTo(px, py) : shape.lineTo(px, py);
-    }
-    shape.closePath();
-    const geo = new T.ExtrudeGeometry(shape, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 3 });
-    const star = mesh(geo, color, x, y, z, ry);
-    star.rotation.x = -0.35;
-    [-0.045, 0.045].forEach(dx => {
-      const eye = sphere(0.014, 0x3b2a20, 0, 0, 0);
-      star.add(eye);
-      eye.position.set(dx, 0.02, 0.14);
-    });
-    return star;
-  };
-
   // beige bookshelf frame, books keep their original colours
   const SHELF_COLOR = 0xe6c9a0;   // same as the nightstand
   const FRAME_MIN   = 0.5;        // a piece at least this big (vs the whole shelf) counts as frame, smaller = book
@@ -1091,10 +1059,6 @@ export function buildRoom(scene, on, actions) {
   // small nail the cap hangs from, at the top of the back strap
   sphere(0.015, 0x888888, R - 0.03, HAT_Y + HAT_H / 2, HAT_Z);
 
-  // ivy hanging down the right wall (back corner, above the desk)
-  vine(R - 0.07, CEIL - 0.05, -1.85, 0.6);
-  vine(R - 0.07, CEIL - 0.05, -1.7,  0.45);
-
   // ═════════ left wall: booknook poster (replaces the two small posters) ═════════
   const BOOKNOOK_H  = 1.2;      // height in meters (width follows the image's proportions)
   const BOOKNOOK_Y  = 1.75;     // height of the poster's middle above the floor
@@ -1146,25 +1110,23 @@ export function buildRoom(scene, on, actions) {
     },
   });
 
-  // ═════════ fairy lights (back wall, draped in a curve, with soft glow) ═════════
-  const FAIRY_COLORS = [0xffd070, 0xff8fb5, 0xfff3b0];
-  for (let i = 0; i < 15; i++) {
-    const pos = new T.Vector3(-2.1 + i * 0.3, 2.52 - Math.sin(i / 2.2) * 0.1, B + 0.12);
+  // ═════════ ceiling light (models/ceilinglight.glb) ═════════
+  const CEILLIGHT_LEN = 0.7;                  // size of the fixture's longest side, in meters
+  const CEILLIGHT_X   = 0;                    // room center
+  const CEILLIGHT_Z   = 0;
+  const CEIL_UNDERSIDE = CEIL - 0.05;         // the ceiling slab is 0.1 thick, so this is its bottom face
 
-    const bulb = new T.Mesh(
-      new T.SphereGeometry(0.05),
-      new T.MeshBasicMaterial({ color: FAIRY_COLORS[i % 3] })
-    );
-    bulb.position.copy(pos);
-    scene.add(bulb);
-
-    const halo = new T.Mesh(
-      new T.SphereGeometry(0.08),
-      new T.MeshBasicMaterial({ color: FAIRY_COLORS[i % 3], transparent: true, opacity: 0.18, depthWrite: false })
-    );
-    halo.position.copy(pos);
-    scene.add(halo);
-  }
+  loadModel(scene, 'models/ceilinglight.glb', {
+    x: CEILLIGHT_X, y: CEIL_UNDERSIDE - 0.3, z: CEILLIGHT_Z, length: CEILLIGHT_LEN, ry: 0, brighten: 0.3,
+    onLoad: ({ holder }) => {
+      holder.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(holder);
+      holder.position.x += CEILLIGHT_X - (b.min.x + b.max.x) / 2;   // centered on the room
+      holder.position.z += CEILLIGHT_Z - (b.min.z + b.max.z) / 2;
+      holder.position.y += CEIL_UNDERSIDE - b.max.y;                // top of the fixture touches the ceiling
+      holder.updateMatrixWorld(true);
+    },
+  });
 
   // ═════════ lighting (dialed down so the pastels don't blow out) ═════════
   scene.add(new T.AmbientLight(0xfff4e8, 0.4));

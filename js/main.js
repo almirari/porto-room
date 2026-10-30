@@ -4,6 +4,7 @@ import { flappy } from './flappy.js';
 import * as C from './content.js';
 import { loadModels } from './models.js';
 import { initIntro } from './intro.js';
+import { initLoader } from './loader.js';
 
 const T = THREE;
 const $ = id => document.getElementById(id);
@@ -20,12 +21,23 @@ hud.style.opacity = 0;
 hud.style.transition = 'opacity 0.8s ease';
 hud.style.pointerEvents = 'none';
 
+const loader = initLoader({ src: 'textures/cat.webm' });
+const loadEl = $('load');
+
 // camera "flies in" from slightly behind/above and lands on its start position
 const fly = { on: false, t0: 0, dur: 2200, back: 2.2, up: 0.9 };
 const intro = initIntro({
+  // user clicked/skipped before the room was ready
+  onWait: () => loader.show(() => { loadEl.style.visibility = 'hidden'; }),
+
   onEnter: () => {
-    loaded = true; fly.t0 = performance.now(); fly.on = true;
-    hud.style.opacity = '';                              // fade in
+    loaded = true;
+    hud.style.opacity = '';
+    fly.on = true;
+    fly.t0 = performance.now() + 1e9;   // camera waits at the fly-in start until the dots begin to leave
+    loader.hide(wasShown => {
+      fly.t0 = performance.now() + (wasShown ? 350 : 0);   // start when the dots are about half gone
+    });
   },
 });
 
@@ -67,12 +79,41 @@ const { col, motes } = buildRoom(scene, on, {
                         <canvas id="g" width="320" height="400"></canvas>`, flappy($('g'))),
 });
 
-// ───────────── .glb models (plant, …) ─────────────
-loadModels(scene, col).catch(e => console.warn(e)).finally(() => { needsFrame = true; intro.setReady(); });
+// ───────────── state (declared early: warmUp uses yaw / pitch) ─────────────
+let yaw = 0.35, pitch = -0.12;
+let drag = null;        // set while a finger/mouse is down on the canvas
+let walkTarget = null;  // where tap-to-move is heading
+const keys = {};
+
+// ───────────── .glb models + warm-up ─────────────
+const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
+
+// first render happens now, hidden behind the intro/loader, not in front of the user
+async function warmUp() {
+  camera.rotation.set(pitch, yaw, 0, 'YXZ');
+  renderer.compile(scene, camera);
+  if (renderer.initTexture) {            // upload textures even for things outside the first view
+    scene.traverse(o => {
+      if (!o.isMesh) return;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => {
+        if (m && m.map && m.map.image) renderer.initTexture(m.map);
+      });
+    });
+  }
+  renderer.render(scene, camera);        // shadow map + first draw
+  await nextFrame();
+  await nextFrame();
+}
+
+loadModels(scene, col)
+  .catch(e => console.warn(e))
+  .then(warmUp)
+  .catch(e => console.warn(e))
+  .finally(() => intro.setReady());
 setTimeout(() => intro.setReady(), 8000);   // safety net
 
 // ───────────── collision ─────────────
-const ROOM_LIMIT = 2.0; 
+const ROOM_LIMIT = 2.0;
 const BODY = 0.3; // how close you can get to furniture
 
 const inRoom = (x, z) => Math.abs(x) < ROOM_LIMIT && Math.abs(z) < ROOM_LIMIT;
@@ -81,12 +122,6 @@ const inNook = (x, z) => x > -0.4 && x < 1.4 && z >= ROOM_LIMIT - 0.1 && z < 3.1
 const canStandAt = (x, z) =>
   (inRoom(x, z) || inNook(x, z)) &&
   !col.some(([x0, x1, z0, z1]) => x > x0 - BODY && x < x1 + BODY && z > z0 - BODY && z < z1 + BODY);
-
-// ───────────── state ─────────────
-let yaw = 0.35, pitch = -0.12;
-let drag = null;        // set while a finger/mouse is down on the canvas
-let walkTarget = null;  // where tap-to-move is heading
-const keys = {};
 
 // ───────────── keyboard ─────────────
 addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
@@ -230,15 +265,16 @@ function loop(t) {
   updatePlayer(dt);
   motes.rotation.y += dt * 0.02;
   camera.rotation.set(pitch, yaw, 0, 'YXZ');
-    // temporary fly-in offset: applied only for this render, then removed (real camera position never changes)
+
+  // temporary fly-in offset: applied only for this render, then removed (real camera position never changes)
   let off = null;
   if (fly.on) {
-    const k = Math.min(1, (performance.now() - fly.t0) / fly.dur);
-    const d = Math.pow(1 - k, 3);                         // ease-out: cepat di awal, mendarat halus
+    const k = Math.min(1, Math.max(0, (performance.now() - fly.t0) / fly.dur));   // clamped at 0 while waiting
+    const d = Math.pow(1 - k, 3);                         // ease-out: fast at the start, soft landing
     const dir = new T.Vector3();
     camera.getWorldDirection(dir);
-    off = dir.multiplyScalar(-fly.back * d);              // mundur dari arah pandang...
-    off.y += fly.up * d;                                  // ...dan agak naik
+    off = dir.multiplyScalar(-fly.back * d);              // back away from the view direction...
+    off.y += fly.up * d;                                  // ...and slightly up
     camera.position.add(off);
     if (k >= 1) fly.on = false;
   }

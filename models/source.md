@@ -53,3 +53,5 @@ shoe rack https://sketchfab.com/3d-models/shoe-rack-with-shoes-crafted-by-jerovd
 laundry basket https://sketchfab.com/3d-models/laundry-basket-97d5aa2570a041b7887ab06d443a4974
 
 fire escape https://sketchfab.com/3d-models/fire-escape-8e33b01773e24cc79715dc7bb35b2405
+
+ceiling lights https://sketchfab.com/3d-models/ceiling-light-3e65cebe43b144ca802101d482b9c193

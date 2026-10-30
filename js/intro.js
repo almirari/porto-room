@@ -22,7 +22,7 @@ function wrapWords(el) {
   el.replaceChildren(frag);
 }
 
-export function initIntro({ onEnter }) {
+export function initIntro({ onEnter, onWait }) {
   const load = $('load'), hero = $('hero'), base = $('heroBase');
   const sceneA = $('sceneA'), sceneB = $('sceneB');
   const hint = $('hint'), status = $('status'), skip = $('skip'), cta = $('cta');
@@ -54,6 +54,7 @@ export function initIntro({ onEnter }) {
   hero.decode().catch(() => {});
 
   let ready = false, entered = false, raf = 0;
+  let waiting = false;
   let wantGo = false, skipped = false;   // wantGo = user clicked to continue, skipped = pressed "skip intro"
   let target = 0, cur = 0, drawn = -1;   // scroll progress 0..1 (target = input, cur = smoothed)
 
@@ -139,7 +140,7 @@ export function initIntro({ onEnter }) {
 
     if (cur >= 0.995 && (wantGo || skipped)) {
       if (ready) go();
-      else status.style.opacity = 1;   // clicked before the models finished loading
+      else if (!waiting) { waiting = true; if (onWait) onWait(); }   // halftone loader takes over
     }
   }
   tick.last = 0;
